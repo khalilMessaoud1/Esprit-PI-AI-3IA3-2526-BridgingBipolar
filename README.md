@@ -1,7 +1,5 @@
 # BridgingBipolar
 Bridging Bipolar is an AI mental health monitoring project developed as part of the Challenge-Based Learning AI Project at Esprit School of Engineering. It uses multimodal data to support early detection of bipolar mood instability between medical visits.
-# Bridging Bipolar  
-An AI-powered mental health monitoring system for bipolar disorder using multimodal machine learning.
 
 ## Overview
 Bridging Bipolar is an AI-based healthcare project developed as part of the Challenge-Based Learning (CBL) program at **Esprit School of Engineering**. The system addresses the lack of continuous monitoring for bipolar disorder patients between clinical visits by leveraging machine learning and behavioral data analysis. It combines multiple data sources such as voice, sleep patterns, handwriting, text, and questionnaires to detect early signs of mood instability and generate explainable risk predictions.
@@ -18,20 +16,16 @@ Bridging Bipolar is an AI-based healthcare project developed as part of the Chal
 ## Tech Stack
 
 ### Frontend
-- React.js (if you use it)
-- HTML / CSS / JavaScript
+
 
 ### Backend
-- Python
-- FastAPI
-- Machine Learning (Scikit-learn, TensorFlow, PyTorch)
+
 
 ### Other Tools
 - Pandas, NumPy (data processing)
 - SHAP, LIME (Explainable AI)
-- Docker (optional)
 - GitHub (version control)
-- Kaggle / Google Colab (model training)
+- Kaggle / Google Colab / Visual Studio Code (model training)
 
 ## Directory Structure
 
