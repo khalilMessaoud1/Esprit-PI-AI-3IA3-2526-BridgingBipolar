@@ -3,20 +3,18 @@ services:
     name: bridging-bipolar-web
     runtime: node
     rootDir: apps/web
+    plan: free
     buildCommand: npm install && npm run build
     startCommand: npm start
     envVars:
       - key: NODE_ENV
         value: production
-      - key: NEXT_PUBLIC_API_URL
-        value: "https://bridging-bipolar-api.onrender.com"
-      - key: RAG_SERVICE_URL
-        value: "https://bridging-bipolar-rag.onrender.com"
 
   - type: web
     name: bridging-bipolar-api
     runtime: node
     rootDir: apps/api
+    plan: free
     buildCommand: npm install && npm run prisma:generate && npm run build
     startCommand: npm start
     envVars:
@@ -33,6 +31,7 @@ services:
     name: bridging-bipolar-rag
     runtime: python
     rootDir: rag_api
+    plan: free
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
     envVars:
