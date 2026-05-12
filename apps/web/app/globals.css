@@ -1,0 +1,22 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+body {
+  @apply bg-background text-textPrimary antialiased;
+  font-family: "Manrope", system-ui, -apple-system, sans-serif;
+  min-height: 100vh;
+  background-image:
+    radial-gradient(ellipse 120% 80% at 0% -10%, rgba(224, 242, 254, 0.9) 0%, transparent 55%),
+    radial-gradient(ellipse 90% 60% at 100% 0%, rgba(237, 233, 254, 0.55) 0%, transparent 50%),
+    radial-gradient(ellipse 80% 50% at 50% 100%, rgba(214, 240, 238, 0.35) 0%, transparent 45%),
+    linear-gradient(180deg, #f8fafc 0%, #f4f7fb 100%);
+}
+
+::selection {
+  background: #cfe8f5;
+}

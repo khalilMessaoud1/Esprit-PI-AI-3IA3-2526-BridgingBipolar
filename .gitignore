@@ -1,0 +1,11 @@
+node_modules/
+.next/
+dist/
+.env
+.env.*
+.DS_Store
+coverage/
+a7na
+logo.png
+ymrs.pdf 
+hdrs.pdf 

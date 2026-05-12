@@ -1,0 +1,1 @@
+# RAG API adapter package

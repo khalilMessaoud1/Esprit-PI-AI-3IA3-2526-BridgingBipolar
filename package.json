@@ -1,0 +1,21 @@
+{
+  "name": "bridgingbipolar",
+  "private": true,
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm:dev:web\" \"npm:dev:api\" \"npm:dev:prescription\"",
+    "dev:all": "concurrently \"npm:dev:web\" \"npm:dev:api\" \"npm:dev:prescription\" \"npm:dev:ml\"",
+    "dev:web": "npm --workspace apps/web run dev",
+    "dev:api": "npm --workspace apps/api run start:dev",
+    "dev:prescription": "npm --prefix apps/prescription-service run dev",
+    "dev:ml": "npm --workspace apps/ml-service run dev",
+    "dev:handwriting": "npm --workspace apps/handwriting-api run dev",
+    "build": "npm --workspace apps/web run build && npm --workspace apps/api run build",
+    "lint": "npm --workspace apps/web run lint && npm --workspace apps/api run lint"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

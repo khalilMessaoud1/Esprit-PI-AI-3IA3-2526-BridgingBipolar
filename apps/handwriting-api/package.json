@@ -1,0 +1,9 @@
+{
+  "name": "handwriting-api",
+  "private": true,
+  "scripts": {
+    "dev": "py -3.13 app.py",
+    "dev:handwriting": "py -3.13 app.py",
+    "start": "py -3.13 app.py"
+  }
+}

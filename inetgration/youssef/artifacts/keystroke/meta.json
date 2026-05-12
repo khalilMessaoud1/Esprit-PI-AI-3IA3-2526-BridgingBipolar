@@ -1,0 +1,63 @@
+{
+  "label_map": {
+    "normal": 0,
+    "manic": 1,
+    "depressed": 2
+  },
+  "label_names": [
+    "Normal",
+    "Manic",
+    "Depressed"
+  ],
+  "m3_feat_cols": [
+    "std_flight",
+    "iqr_flight",
+    "skew_flight",
+    "kurt_flight",
+    "mean_hold",
+    "std_hold",
+    "p10_hold",
+    "p90_hold",
+    "mean_digraph",
+    "std_digraph",
+    "rhythm_cv",
+    "burst_count",
+    "slow_count",
+    "hold_flight_ratio"
+  ],
+  "m2_feat_cols": [
+    "backspace_rate",
+    "autocorrect_rate",
+    "net_error_rate",
+    "correction_delay_s",
+    "inter_key_ms",
+    "burst_ratio",
+    "correction_efficiency",
+    "typo_spike_flag",
+    "error_load",
+    "correction_ratio",
+    "speed_error_ix",
+    "burst_error_ix",
+    "log_correction_delay",
+    "log_inter_key_ms",
+    "errors_per_100ks",
+    "speed_deviation",
+    "extreme_speed_flag",
+    "high_burst_flag",
+    "error_consistency"
+  ],
+  "ref_stats": {
+    "mean_backspace_rate": 0.12377191011235956,
+    "std_backspace_rate": 0.0619690490464512
+  },
+  "mss": {
+    "raw_min": 0.0021868253444112815,
+    "raw_max": 0.013326731243986482,
+    "scale": 89.76736509400256,
+    "min": -0.19630554908858538,
+    "q33_train_ms": 125.96143429806799,
+    "q67_train_ms": 173.6646378219803
+  },
+  "median_ik_ms": 180,
+  "version": 1
+}

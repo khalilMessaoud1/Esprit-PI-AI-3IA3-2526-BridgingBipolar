@@ -1,0 +1,157 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum AssessmentType {
+  YMRS
+  HDRS
+}
+
+enum UserRole {
+  PATIENT
+  DOCTOR
+  RELATIVE
+}
+
+model User {
+  id                String               @id @default(uuid())
+  name              String
+  email             String               @unique
+  passwordHash      String
+  supervisorPhone   String?
+  avatarUrl         String?
+  birthDate         DateTime?            @db.Date
+  age               Int?
+  bio               String?
+  role              UserRole             @default(PATIENT)
+  firstLogin        Boolean              @default(true)
+  language          String               @default("en")
+  linkedDoctorId    String?
+  createdAt         DateTime             @default(now())
+  assessments       Assessment[]
+  moodEntries       MoodEntry[]
+  medications       Medication[]
+  activityLogs      ActivityLog[]
+  resetTokens       PasswordResetToken[]
+  mouseBehaviorLogs MouseBehaviorLog[]
+  appointmentsPatient Appointment[]    @relation("ApptPatient")
+  appointmentsDoctor  Appointment[]    @relation("ApptDoctor")
+  companionThreads  CompanionThread[]
+}
+
+model CompanionThread {
+  id        String              @id @default(uuid())
+  userId    String
+  title     String?
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
+  user      User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages  CompanionMessage[]
+
+  @@index([userId])
+}
+
+model CompanionMessage {
+  id        String           @id @default(uuid())
+  threadId  String
+  role      String
+  content   String
+  metadata  Json?
+  createdAt DateTime         @default(now())
+  thread    CompanionThread  @relation(fields: [threadId], references: [id], onDelete: Cascade)
+
+  @@index([threadId])
+}
+
+model DoctorNote {
+  id        String   @id @default(uuid())
+  doctorId  String
+  patientId String
+  body      String
+  createdAt DateTime @default(now())
+}
+
+model Appointment {
+  id        String   @id @default(uuid())
+  patientId String
+  doctorId  String
+  startAt   DateTime
+  endAt     DateTime
+  status    String   @default("pending")
+  createdAt DateTime @default(now())
+  patient   User     @relation("ApptPatient", fields: [patientId], references: [id])
+  doctor    User     @relation("ApptDoctor", fields: [doctorId], references: [id])
+}
+
+model MouseBehaviorLog {
+  id          String   @id @default(uuid())
+  userId      String
+  date        String
+  state       String
+  score       Float
+  level       String
+  windowCount Int
+  anomalyPct  Float
+  savedAt     DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id])
+
+  @@unique([userId, date])
+}
+
+model Assessment {
+  id        String         @id @default(uuid())
+  userId    String
+  type      AssessmentType
+  answers   Json
+  score     Int
+  createdAt DateTime       @default(now())
+  user      User           @relation(fields: [userId], references: [id])
+}
+
+model MoodEntry {
+  id        String   @id @default(uuid())
+  userId    String
+  moodLevel Int
+  note      String?
+  voiceUrl  String?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model Medication {
+  id        String   @id @default(uuid())
+  userId    String
+  name      String
+  dosage    String
+  frequency String
+  time      String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model ActivityLog {
+  id            String   @id @default(uuid())
+  userId        String
+  sleepHours    Float
+  energyLevel   Int
+  activityNotes String?
+  createdAt     DateTime @default(now())
+  user          User     @relation(fields: [userId], references: [id])
+}
+
+model PasswordResetToken {
+  id        String   @id @default(uuid())
+  userId    String
+  tokenHash String
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@index([tokenHash])
+}
