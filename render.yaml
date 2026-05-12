@@ -32,7 +32,7 @@ services:
     runtime: python
     rootDir: rag_api
     plan: free
-    buildCommand: pip install -r requirements.txt
+    buildCommand: pip install -r requirements-render.txt
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: RAG_API_KEY
