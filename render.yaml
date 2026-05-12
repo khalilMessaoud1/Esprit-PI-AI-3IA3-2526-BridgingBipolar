@@ -9,9 +9,9 @@ services:
       - key: NODE_ENV
         value: production
       - key: NEXT_PUBLIC_API_URL
-        value: "https://bridging-bipolar-api.onrender.com"  
+        value: "https://bridging-bipolar-api.onrender.com"
       - key: RAG_SERVICE_URL
-        value: "https://bridging-bipolar-rag.onrender.com"   
+        value: "https://bridging-bipolar-rag.onrender.com"
 
   - type: web
     name: bridging-bipolar-api
@@ -42,4 +42,3 @@ services:
 databases:
   - name: bridging-bipolar-db
     plan: free
-bridging-bipolar-api.onrender.com
