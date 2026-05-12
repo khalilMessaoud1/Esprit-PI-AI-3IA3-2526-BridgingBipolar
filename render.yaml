@@ -15,7 +15,7 @@ services:
     runtime: node
     rootDir: apps/api
     plan: free
-    buildCommand: npm install && npm install -g @nestjs/cli && npm run prisma:generate && npx nest build
+    buildCommand: npm install --include=dev && npm run prisma:generate && npm run build
     startCommand: npm start
     envVars:
       - key: NODE_ENV
