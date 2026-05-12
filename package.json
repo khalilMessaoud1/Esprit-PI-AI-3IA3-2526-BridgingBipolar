@@ -19,7 +19,9 @@
     "concurrently": "^8.2.2"
   },
   "dependencies": {
-    "@types/multer": "^2.1.0",
-    "@types/multer": "^1.4.x"
+    "@types/multer": "^1.4.x",
+    "autoprefixer": "^10.5.0",
+    "postcss": "^8.5.14",
+    "tailwindcss": "^4.3.0"
   }
 }
