@@ -1,0 +1,1 @@
+self.__REACT_LOADABLE_MANIFEST="{\"components\\\\CompanionAvatarCanvas.tsx -> ../lib/companionAvatarScene\":{\"id\":\"components\\\\CompanionAvatarCanvas.tsx -> ../lib/companionAvatarScene\",\"files\":[\"static/chunks/_app-pages-browser_lib_companionAvatarScene_ts.js\"]}}"

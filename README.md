@@ -1,36 +1,35 @@
 # BridgingBipolar
+Bridging Bipolar is an AI mental health monitoring project developed as part of the Challenge-Based Learning AI Project at Esprit School of Engineering. It uses multimodal data to support early detection of bipolar mood instability between medical visits.
 
-A clinically-informed mental health tracking platform for bipolar disorder patients.
+## Overview
+Bridging Bipolar is an AI-based healthcare project developed as part of the Challenge-Based Learning (CBL) program at **Esprit School of Engineering**. The system addresses the lack of continuous monitoring for bipolar disorder patients between clinical visits by leveraging machine learning and behavioral data analysis. It combines multiple data sources such as voice, sleep patterns, handwriting, text, and questionnaires to detect early signs of mood instability and generate explainable risk predictions.
 
-## Stack
+## Features
+- Multimodal mood detection (voice, sleep, handwriting, text, facial expressions)
+- Machine learning models for classification and prediction
+- Early warning system for mood instability
+- Explainable AI (XAI) using SHAP and LIME
+- AI chatbot for personalized CBT support
+- Risk scoring system (Global Stability Index)
+- Data processing and behavioral analysis pipeline
 
-- Frontend: Next.js, Tailwind CSS, Framer Motion
-- Backend: NestJS, PostgreSQL (Prisma)
-- Storage: AWS S3 (presigned uploads)
+## Tech Stack
 
-## Architecture
+### Frontend
 
-- apps/web: Next.js UI, assessment flows, dashboard, settings, chatbot widget
-- apps/api: NestJS REST API with JWT auth, Prisma ORM, modular domains
-- PostgreSQL: users, assessments, mood entries, medications, activity logs
 
-## Getting Started
+### Backend
 
-1. Install dependencies:
-   - `npm install`
-2. Configure environment variables:
-   - Copy `apps/api/.env.example` to `apps/api/.env`
-   - Copy `apps/web/.env.example` to `apps/web/.env`
-3. Start the dev stack:
-   - `npm run dev`
 
-## Workspace Scripts
+### Other Tools
+- Pandas, NumPy (data processing)
+- SHAP, LIME (Explainable AI)
+- GitHub (version control)
+- Kaggle / Google Colab / Visual Studio Code (model training)
 
-- `npm run dev` - start API and web
-- `npm run build` - build API and web
-- `npm run lint` - lint API and web
+## Directory Structure
 
-## Notes
+## Acknowledgments
+This project was developed as part of the Challenge-Based Learning (CBL) AI program at **Esprit School of Engineering**, under the supervision of Dr.Jihene HLEL,Mrs.Wided ASKRI and Mr. Fedi BACCAR .
 
-- Replace placeholder keys in the env files before production.
-- The chatbot uses a safe, non-diagnostic response template by default.
+The work builds upon research in artificial intelligence, machine learning, and multimodal mental health monitoring systems.
