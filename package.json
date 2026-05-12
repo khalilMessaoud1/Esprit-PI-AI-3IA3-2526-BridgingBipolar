@@ -17,5 +17,9 @@
   },
   "devDependencies": {
     "concurrently": "^8.2.2"
+  },
+  "dependencies": {
+    "@types/multer": "^2.1.0",
+    "@types/multer": "^1.4.x"
   }
 }
