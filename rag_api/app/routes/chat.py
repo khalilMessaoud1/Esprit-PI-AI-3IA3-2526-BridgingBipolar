@@ -110,6 +110,9 @@ def _run_chat_sync(
 
 @router.post("/chat", response_model=ChatResponse)
 async def chat_endpoint(request: Request, body: ChatRequest) -> ChatResponse:
+    if request.app.state.retriever is None:
+        from graphrag.chat_pipeline import build_retriever_from_env
+        request.app.state.retriever = build_retriever_from_env()
     retriever = request.app.state.retriever
     session_memory = getattr(request.app.state, "session_memory", None)
     crisis = getattr(request.app.state, "crisis_redis", None)
