@@ -17,7 +17,7 @@ ensure_graphrag_path()
 from app.routes import chat, health, image, tts, voice
 
 logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(_name_)
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
