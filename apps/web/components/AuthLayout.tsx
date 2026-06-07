@@ -25,7 +25,7 @@ export default function AuthLayout({ title, subtitle, children }: Props) {
       <div className="relative w-full max-w-md space-y-6">
         <div className="text-center">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo.svg" alt="BridgingBipolar" className="mx-auto mb-3 h-20 w-20 drop-shadow-lg" />
+          <img src="/logo.png" alt="BridgingBipolar" className="mx-auto mb-3 h-20 w-auto max-w-[16rem] object-contain drop-shadow-lg" />
           <div className="mb-1 text-xs font-semibold uppercase tracking-widest text-indigo-500 dark:text-indigo-300">
             BridgingBipolar
           </div>

@@ -95,7 +95,7 @@ export default function LandingPage() {
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-3">
           <div className="flex items-center gap-3">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/logo.svg" alt="BridgingBipolar" className="h-10 w-10" />
+            <img src="/logo.png" alt="BridgingBipolar" className="h-10 w-auto object-contain" />
             <span className="text-lg font-bold tracking-tight text-slate-900 dark:text-slate-100">BridgingBipolar</span>
           </div>
           <div className="flex items-center gap-3">
@@ -127,7 +127,7 @@ export default function LandingPage() {
         />
         <div className="relative mx-auto max-w-4xl">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo.svg" alt="BridgingBipolar" className="mx-auto mb-6 h-28 w-28 drop-shadow-xl" />
+          <img src="/logo.png" alt="BridgingBipolar" className="mx-auto mb-6 h-28 w-auto max-w-xs object-contain drop-shadow-xl" />
           <h1 className="mt-4 text-5xl font-extrabold leading-tight text-slate-900 dark:text-slate-100 sm:text-6xl">
             Bridging the gap between
             <br />
@@ -325,7 +325,7 @@ export default function LandingPage() {
       <section className="bg-gradient-to-br from-indigo-500 via-violet-500 to-violet-400 px-6 py-24 text-center dark:from-indigo-700 dark:via-violet-800 dark:to-indigo-900">
         <div className="mx-auto max-w-2xl">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo.svg" alt="BridgingBipolar" className="mx-auto mb-6 h-16 w-16 drop-shadow-lg" />
+          <img src="/logo.png" alt="BridgingBipolar" className="mx-auto mb-6 h-16 w-auto max-w-[14rem] object-contain drop-shadow-lg" />
           <h2 className="mb-4 text-4xl font-extrabold text-white">Ready to start monitoring?</h2>
           <p className="mb-10 text-lg text-indigo-200">
             Join BridgingBipolar and give your care team the data they need to act sooner.
@@ -351,7 +351,7 @@ export default function LandingPage() {
       <footer className="bg-slate-900 px-6 py-10 text-center text-sm text-slate-400 dark:bg-black">
         <div className="mb-3 flex items-center justify-center gap-3">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo.svg" alt="" className="h-6 w-6 opacity-60" />
+          <img src="/logo.png" alt="" className="h-6 w-auto object-contain opacity-60" />
           <span className="font-semibold text-white">BridgingBipolar</span>
         </div>
         <p className="mt-1 text-slate-500">© 2026 BridgingBipolar. Educational research project.</p>

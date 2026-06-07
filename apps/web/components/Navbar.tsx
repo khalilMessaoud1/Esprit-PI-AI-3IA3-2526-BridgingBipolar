@@ -99,7 +99,7 @@ export default function Navbar() {
         {/* Brand */}
         <Link href={homeHref} className="flex items-center gap-2.5">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo.svg" alt="BridgingBipolar" className="h-8 w-8 drop-shadow-sm" />
+          <img src="/logo.png" alt="BridgingBipolar" className="h-8 w-auto object-contain drop-shadow-sm" />
           <span className="text-sm font-bold tracking-tight text-slate-900 dark:text-slate-100">BridgingBipolar</span>
           <span className="hidden rounded-lg bg-indigo-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-200 sm:inline">
             {nav.monitoring}

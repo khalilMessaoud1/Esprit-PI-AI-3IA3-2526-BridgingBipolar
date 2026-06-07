@@ -18,6 +18,10 @@ const manrope = Manrope({
 export const metadata: Metadata = {
   title: "BridgingBipolar",
   description: "Clinically-informed bipolar disorder tracking platform",
+  icons: {
+    icon: "/logo.png",
+    apple: "/logo.png",
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

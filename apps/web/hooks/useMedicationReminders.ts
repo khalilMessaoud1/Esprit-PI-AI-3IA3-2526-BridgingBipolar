@@ -23,8 +23,8 @@ function showMedNotification(med: Medication, lang: string) {
   try {
     const n = new Notification(title, {
       body,
-      icon: "/logo.svg",
-      badge: "/logo.svg",
+      icon: "/logo.png",
+      badge: "/logo.png",
       tag: `bb-med-${med.id}-${toHHMM(new Date())}`, // unique per medication per minute
     });
     setTimeout(() => n.close(), 15_000);
