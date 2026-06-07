@@ -71,6 +71,8 @@ export class UsersController {
     const ymrs = patient.assessments.find((a: { type: string }) => a.type === "YMRS");
     const hdrs = patient.assessments.find((a: { type: string }) => a.type === "HDRS");
     const mouse = patient.mouseBehaviorLogs[0] ?? null;
+    const crisisAlerts = await this.usersService.listCompanionCrisisAlertsForRelative(user.id, 5);
+    const unreadCrisisCount = crisisAlerts.filter((a) => !a.readAt).length;
     return {
       patient: {
         id: patient.id,
@@ -80,7 +82,37 @@ export class UsersController {
         latestHdrs: hdrs?.score ?? null,
         mouseState: mouse?.state ?? null,
         mouseScore: mouse?.score ?? null
-      }
+      },
+      crisisAlerts: crisisAlerts.map((a) => ({
+        id: a.id,
+        patientName: a.patientName,
+        createdAt: a.createdAt,
+        read: Boolean(a.readAt)
+      })),
+      unreadCrisisCount
     };
+  }
+
+  /** Crisis alerts for linked patient (RELATIVE dashboard). */
+  @Get("companion-crisis-alerts")
+  async companionCrisisAlerts(@CurrentUser() user: { id: string }) {
+    const alerts = await this.usersService.listCompanionCrisisAlertsForRelative(user.id, 20);
+    return {
+      items: alerts.map((a) => ({
+        id: a.id,
+        patientId: a.patientId,
+        patientName: a.patientName,
+        createdAt: a.createdAt,
+        read: Boolean(a.readAt)
+      }))
+    };
+  }
+
+  @Patch("companion-crisis-alerts/read")
+  async markCompanionCrisisAlertsRead(
+    @CurrentUser() user: { id: string },
+    @Body() body: { ids?: string[] }
+  ) {
+    return this.usersService.markCompanionCrisisAlertsRead(user.id, body.ids);
   }
 }

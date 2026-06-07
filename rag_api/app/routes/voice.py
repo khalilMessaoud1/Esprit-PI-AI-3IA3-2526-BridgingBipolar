@@ -98,6 +98,9 @@ async def voice_endpoint(
         except json.JSONDecodeError:
             crisis_parent = None
 
+    if request.app.state.retriever is None:
+        from graphrag.chat_pipeline import build_retriever_from_env
+        request.app.state.retriever = build_retriever_from_env()
     retriever = request.app.state.retriever
     memory = getattr(request.app.state, "session_memory", None)
 

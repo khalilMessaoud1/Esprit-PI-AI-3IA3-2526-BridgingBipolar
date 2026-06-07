@@ -8,6 +8,9 @@ const ragBase = (
 const nextConfig = {
   reactStrictMode: true,
   transpilePackages: ["@pixiv/three-vrm"],
+  experimental: {
+    optimizePackageImports: ["three", "@pixiv/three-vrm", "framer-motion", "xlsx"],
+  },
   images: {
     domains: ["localhost"],
   },

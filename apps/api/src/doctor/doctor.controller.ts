@@ -24,6 +24,11 @@ export class DoctorController {
     return this.doctor.getPatientDetail(user.id, patientId);
   }
 
+  @Post("patients/:patientId/request-questionnaire")
+  requestQuestionnaire(@CurrentUser() user: { id: string }, @Param("patientId") patientId: string) {
+    return this.doctor.requestPatientQuestionnaire(user.id, patientId);
+  }
+
   @Post("patients/:patientId/notes")
   addNote(
     @CurrentUser() user: { id: string },

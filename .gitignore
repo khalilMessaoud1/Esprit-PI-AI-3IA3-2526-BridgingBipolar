@@ -218,4 +218,51 @@ __marimo__/
 .streamlit/secrets.toml
 .claude/
 __pycache__/
+
+# ── Node / monorepo (ESPRIT — do not commit) ───────────────────────────────
+node_modules/
+.next/
+out/
+.turbo/
+*.tsbuildinfo
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# ── IDE / OS ─────────────────────────────────────────────────────────────
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# ── Secrets & local env (never commit real values) ─────────────────────────
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# ── ML / IA — models & datasets (host on Hugging Face / Drive, not Git) ───
+*.pkl
+*.joblib
+*.h5
+*.keras
+*.pt
+*.pth
+*.onnx
+*.bin
+*.safetensors
+models/
+checkpoints/
+data/raw/
+data/processed/
+*.rdb
+
+# ── Temp extraction / build artifacts ──────────────────────────────────────
+Guide_Etudiant_*_extracted.txt
+*.docx~
+.audit-backups-*/
+apps/api/public/uploads/
 *.pyc

@@ -36,6 +36,7 @@ model User {
   assessments       Assessment[]
   moodEntries       MoodEntry[]
   medications       Medication[]
+  medicationDoseLogs MedicationDoseLog[]
   activityLogs      ActivityLog[]
   resetTokens       PasswordResetToken[]
   mouseBehaviorLogs MouseBehaviorLog[]
@@ -132,6 +133,27 @@ model Medication {
   time      String
   createdAt DateTime @default(now())
   user      User     @relation(fields: [userId], references: [id])
+  doseLogs  MedicationDoseLog[]
+}
+
+enum MedicationDoseStatus {
+  TAKEN
+  MISSED
+}
+
+model MedicationDoseLog {
+  id            String               @id @default(uuid())
+  userId        String
+  medicationId  String
+  scheduledDate String
+  scheduledTime String
+  status        MedicationDoseStatus
+  createdAt     DateTime             @default(now())
+  user          User                 @relation(fields: [userId], references: [id])
+  medication    Medication           @relation(fields: [medicationId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, medicationId, scheduledDate, scheduledTime])
+  @@index([userId, scheduledDate])
 }
 
 model ActivityLog {
@@ -154,4 +176,17 @@ model PasswordResetToken {
   user      User     @relation(fields: [userId], references: [id])
 
   @@index([tokenHash])
+}
+
+// In-app alert for linked relatives when a patient sends a crisis message in Companion chat.
+model CompanionCrisisAlert {
+  id          String    @id @default(uuid())
+  patientId   String
+  relativeId  String
+  patientName String
+  readAt      DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([relativeId, readAt])
+  @@index([patientId, createdAt])
 }

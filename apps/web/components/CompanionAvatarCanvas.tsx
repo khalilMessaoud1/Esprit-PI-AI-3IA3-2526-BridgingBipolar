@@ -65,7 +65,7 @@ export default function CompanionAvatarCanvas({ under16, recording, className }:
   return (
     <div
       className={clsx(
-        "relative h-full min-h-[200px] w-full overflow-hidden bg-gradient-to-b from-slate-100 via-slate-50 to-slate-200/95",
+        "relative h-full min-h-[200px] w-full overflow-hidden bg-gradient-to-b from-slate-100 via-slate-50 to-slate-200/95 dark:from-slate-900 dark:via-slate-950 dark:to-slate-900",
         className
       )}
     >

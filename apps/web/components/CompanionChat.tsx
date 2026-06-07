@@ -33,12 +33,16 @@ type ChatTurn = {
   text: string;
   /** User sent an image; `text` is the UI transcript (vision caption + optional note). */
   kind?: "photo";
+  /** Local preview of a photo sent this session (not persisted server-side). */
+  imagePreviewUrl?: string;
+  /** Optional note typed with the photo. */
+  userNote?: string;
   /** Present on assistant bubbles that follow a voice turn (for verification). */
   voiceMood?: VoiceMoodPayload | null;
   xai?: XaiPayload | null;
   /** Text-chat: minimal keystroke summary shown to user. */
   keystrokeUi?: { decision: "normal" | "manic" | "depressed"; risk_level: string; n_keystrokes: number } | null;
-  crisis?: { notified: boolean; smsSent: boolean };
+  crisis?: { notified: boolean; smsSent: boolean; companionApp?: boolean; selfHarmTurn?: boolean };
 };
 
 const PHASE_LABELS: Record<"fr" | "en", Record<VoicePhase, string>> = {
@@ -130,6 +134,7 @@ export default function CompanionChat() {
   const chunksRef = useRef<Blob[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const photoInputRef = useRef<HTMLInputElement>(null);
+  const photoPreviewUrlsRef = useRef<string[]>([]);
   const keystrokeEventsRef = useRef<KeystrokeEvt[]>([]);
   const keystrokeDownIndexRef = useRef<Record<string, number[]>>({});
   const backspaceCountRef = useRef(0);
@@ -163,6 +168,14 @@ export default function CompanionChat() {
   }, [messages, loading, transcriptOpen]);
 
   useEffect(() => {
+    const urls = photoPreviewUrlsRef.current;
+    return () => {
+      for (const url of urls) URL.revokeObjectURL(url);
+      urls.length = 0;
+    };
+  }, []);
+
+  useEffect(() => {
     if (user && user.role !== "PATIENT") {
       router.replace("/dashboard");
     }
@@ -173,7 +186,11 @@ export default function CompanionChat() {
   // Persist crisis flag to localStorage so the dashboard can show the popup
   useEffect(() => {
     const last = messages[messages.length - 1];
-    if (last?.role === "assistant" && last.crisis?.notified && user?.id) {
+    if (
+      last?.role === "assistant" &&
+      user?.id &&
+      (last.crisis?.notified || last.crisis?.selfHarmTurn)
+    ) {
       localStorage.setItem(`bb_crisis_${user.id}`, Date.now().toString());
     }
   }, [messages, user?.id]);
@@ -224,7 +241,9 @@ export default function CompanionChat() {
         lang?: string;
         keystroke?: unknown;
         crisis_support_notified?: boolean;
+        companion_app_notified?: boolean;
         twilio_alert_sent?: boolean;
+        crisis_self_harm_turn?: boolean;
         navigate_to?: string;
         navigateTo?: string;
       }>("/chat", {
@@ -261,7 +280,9 @@ export default function CompanionChat() {
           keystrokeUi,
           crisis: {
             notified: Boolean(res.crisis_support_notified),
-            smsSent: Boolean(res.twilio_alert_sent)
+            smsSent: Boolean(res.twilio_alert_sent),
+            companionApp: Boolean(res.companion_app_notified),
+            selfHarmTurn: Boolean(res.crisis_self_harm_turn)
           }
         }
       ]);
@@ -312,7 +333,9 @@ export default function CompanionChat() {
             voice_mood?: VoiceMoodPayload | null;
             xai?: XaiPayload | null;
             crisis_support_notified?: boolean;
+            companion_app_notified?: boolean;
             twilio_alert_sent?: boolean;
+            crisis_self_harm_turn?: boolean;
             navigate_to?: string;
             navigateTo?: string;
           }>("/chat/voice", form);
@@ -340,7 +363,9 @@ export default function CompanionChat() {
               xai,
               crisis: {
                 notified: Boolean(res.crisis_support_notified),
-                smsSent: Boolean(res.twilio_alert_sent)
+                smsSent: Boolean(res.twilio_alert_sent),
+                companionApp: Boolean(res.companion_app_notified),
+                selfHarmTurn: Boolean(res.crisis_self_harm_turn)
               }
             }
           ]);
@@ -365,6 +390,8 @@ export default function CompanionChat() {
       setError(null);
       setLoading(true);
       const note = input.trim();
+      const previewUrl = URL.createObjectURL(file);
+      photoPreviewUrlsRef.current.push(previewUrl);
       try {
         const form = new FormData();
         form.append("file", file, file.name || "photo.jpg");
@@ -376,7 +403,9 @@ export default function CompanionChat() {
           threadId: string;
           image_caption?: string;
           crisis_support_notified?: boolean;
+          companion_app_notified?: boolean;
           twilio_alert_sent?: boolean;
+          crisis_self_harm_turn?: boolean;
           navigate_to?: string;
           navigateTo?: string;
         }>("/chat/image", form);
@@ -384,13 +413,21 @@ export default function CompanionChat() {
         if (note) setInput("");
         setMessages((m) => [
           ...m,
-          { role: "user", text: res.transcript || (isFr ? "(Photo)" : "(Photo)"), kind: "photo" },
+          {
+            role: "user",
+            text: res.transcript || (isFr ? "(Photo)" : "(Photo)"),
+            kind: "photo",
+            imagePreviewUrl: previewUrl,
+            userNote: note || undefined
+          },
           {
             role: "assistant",
             text: res.reply,
             crisis: {
               notified: Boolean(res.crisis_support_notified),
-              smsSent: Boolean(res.twilio_alert_sent)
+              smsSent: Boolean(res.twilio_alert_sent),
+              companionApp: Boolean(res.companion_app_notified),
+              selfHarmTurn: Boolean(res.crisis_self_harm_turn)
             }
           }
         ]);
@@ -398,6 +435,8 @@ export default function CompanionChat() {
         const nav = pickNavigateTo(res);
         if (nav) window.setTimeout(() => router.push(nav), 0);
       } catch (e) {
+        URL.revokeObjectURL(previewUrl);
+        photoPreviewUrlsRef.current = photoPreviewUrlsRef.current.filter((u) => u !== previewUrl);
         setError(e instanceof Error ? e.message : isFr ? "Envoi photo echoue" : "Photo upload failed");
       } finally {
         setLoading(false);
@@ -431,7 +470,7 @@ export default function CompanionChat() {
           : "Attach a photo for the vision caption and reply"}
         onChange={onPhotoFileChange}
       />
-      <header className="shrink-0 border-b border-slate-200/80 bg-white/90 px-3 py-2 backdrop-blur-sm sm:px-4">
+      <header className="shrink-0 border-b border-slate-200/80 bg-white/90 px-3 py-2 backdrop-blur-sm dark:border-slate-700 dark:bg-slate-900/90 sm:px-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
             <h1 className="text-base font-semibold text-textPrimary sm:text-lg">{isFr ? "Compagnon" : "Companion"}</h1>
@@ -449,7 +488,7 @@ export default function CompanionChat() {
                   ? "border-red-300 bg-red-50 text-red-700 hover:bg-red-100 animate-pulse"
                   : ttsAutoPlay
                   ? "border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100"
-                  : "border-slate-200 bg-slate-100 text-slate-500 hover:bg-slate-200"
+                  : "border-slate-200 bg-slate-100 text-slate-500 hover:bg-slate-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
               }`}
             >
               {ttsAutoPlay && ttsPlayingText
@@ -458,13 +497,13 @@ export default function CompanionChat() {
                 ? `🔊 ${isFr ? "Vocal actif" : language === "ar" ? "الصوت نشط" : "Voice on"}`
                 : `🔇 ${isFr ? "Vocal désactivé" : language === "ar" ? "الصوت مُعطَّل" : "Voice off"}`}
             </button>
-            <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-medium uppercase tracking-wide text-slate-600">
+            <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-medium uppercase tracking-wide text-slate-600 dark:bg-slate-800 dark:text-slate-300">
               {under ? (isFr ? "Moins de 16" : "Under 16") : "16+"}
             </span>
           </div>
         </div>
         {ageMissing && (
-          <p className="mt-2 rounded-lg bg-amber-50 px-2 py-1.5 text-[11px] text-amber-950 sm:text-xs">
+          <p className="mt-2 rounded-lg bg-amber-50 px-2 py-1.5 text-[11px] text-amber-950 dark:bg-amber-950/40 dark:text-amber-100 sm:text-xs">
             {isFr
               ? "Ajoutez votre age dans Parametres → Profil pour choisir le bon avatar et experience."
               : "Add your age in Settings → Profile so we can pick the right avatar and experience."}
@@ -480,7 +519,7 @@ export default function CompanionChat() {
             <ButtonPrimary
               type="button"
               variant="secondary"
-              className={`shadow-lg ${recording ? "!bg-red-100 !text-red-800" : "bg-white/95"}`}
+              className={`shadow-lg ${recording ? "!bg-red-100 !text-red-800 dark:!bg-red-950/50 dark:!text-red-200" : "bg-white/95 dark:bg-slate-800/95"}`}
               onClick={() => {
                 if (recording) void stopRecording();
                 else void startRecording();
@@ -492,7 +531,7 @@ export default function CompanionChat() {
             <ButtonPrimary
               type="button"
               variant="secondary"
-              className="bg-white/95 shadow-lg"
+              className="bg-white/95 shadow-lg dark:bg-slate-800/95"
               onClick={() => photoInputRef.current?.click()}
               disabled={loading}
             >
@@ -511,12 +550,12 @@ export default function CompanionChat() {
 
         {transcriptOpen && (
           <div
-            className="absolute bottom-3 right-3 z-20 flex h-[min(48vh,420px)] w-[min(calc(100vw-1.5rem),380px)] flex-col overflow-hidden rounded-2xl border border-slate-200/90 bg-white/95 shadow-2xl backdrop-blur-md sm:bottom-4 sm:right-4"
+            className="absolute bottom-3 right-3 z-20 flex h-[min(48vh,420px)] w-[min(calc(100vw-1.5rem),380px)] flex-col overflow-hidden rounded-2xl border border-slate-200/90 bg-white/95 shadow-2xl backdrop-blur-md dark:border-slate-600 dark:bg-slate-900/95 sm:bottom-4 sm:right-4"
             role="region"
             aria-label={isFr ? "Conversation" : "Conversation"}
           >
-            <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-slate-200/80 px-3 py-2">
-              <span className="text-xs font-semibold uppercase tracking-wide text-slate-600">{isFr ? "Conversation" : "Conversation"}</span>
+            <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-slate-200/80 px-3 py-2 dark:border-slate-700">
+              <span className="text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">{isFr ? "Conversation" : "Conversation"}</span>
               <div className="flex flex-wrap items-center gap-1.5">
                 <button
                   type="button"
@@ -538,7 +577,7 @@ export default function CompanionChat() {
                 <button
                   type="button"
                   onClick={() => setTranscriptOpen(false)}
-                  className="rounded-lg px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-100"
+                  className="rounded-lg px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
                 >
                   {isFr ? "Masquer" : "Hide"}
                 </button>
@@ -570,7 +609,7 @@ export default function CompanionChat() {
                       className={
                         msg.role === "user"
                           ? "rounded-xl rounded-br-sm bg-primary px-2.5 py-1.5 text-xs text-white"
-                          : "rounded-xl rounded-bl-sm border border-slate-200/80 bg-slate-50 px-2.5 py-1.5 text-xs text-textPrimary"
+                          : "rounded-xl rounded-bl-sm border border-slate-200/80 bg-slate-50 px-2.5 py-1.5 text-xs text-textPrimary dark:border-slate-600 dark:bg-slate-800"
                       }
                     >
                       <div className="mb-0.5 flex items-center justify-between gap-2">
@@ -591,24 +630,49 @@ export default function CompanionChat() {
                           ) : (
                             <button type="button"
                               onClick={() => playMsgTts(msg.text, user?.language, true)}
-                              className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white/80 px-1.5 py-0.5 text-[10px] font-medium text-slate-500 hover:bg-slate-100 transition-colors">
+                              className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white/80 px-1.5 py-0.5 text-[10px] font-medium text-slate-500 hover:bg-slate-100 transition-colors dark:border-slate-600 dark:bg-slate-700/80 dark:text-slate-300 dark:hover:bg-slate-700">
                               🔊 {isFr ? "Lire" : language === "ar" ? "قراءة" : "Read"}
                             </button>
                           )
                         )}
                       </div>
-                      <span className="whitespace-pre-wrap">{msg.text}</span>
+                      {msg.kind === "photo" && msg.imagePreviewUrl ? (
+                        <div className="space-y-1.5">
+                          <img
+                            src={msg.imagePreviewUrl}
+                            alt={isFr ? "Photo envoyée" : "Sent photo"}
+                            className="max-h-52 w-full rounded-lg object-contain bg-black/15"
+                          />
+                          {msg.userNote ? (
+                            <p className="whitespace-pre-wrap text-xs opacity-95">{msg.userNote}</p>
+                          ) : null}
+                        </div>
+                      ) : (
+                        <span className="whitespace-pre-wrap">{msg.text}</span>
+                      )}
                     </div>
+                    {msg.role === "assistant" && msg.crisis?.selfHarmTurn && (
+                      <div className="rounded-lg border border-rose-300 bg-rose-50 px-2 py-1.5 text-[10px] text-rose-950">
+                        {isFr
+                          ? "Si vous êtes en danger, appelez le 15 ou le 3114 immédiatement. Vous n'êtes pas seul(e)."
+                          : "If you are in danger, call emergency services or 988 (US) now. You are not alone."}
+                      </div>
+                    )}
                     {msg.role === "assistant" && msg.crisis?.notified && (
-                      <div className="rounded-lg border border-rose-200 bg-rose-50 px-2 py-1 text-[10px] text-rose-950">
-                        {isFr ? "Alerte securite (serveur)" : "Safety alert (server)"}:{" "}
-                        {msg.crisis.smsSent
+                      <div className="rounded-lg border border-rose-200 bg-rose-50 px-2 py-1 text-[10px] text-rose-950 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-200">
+                        {msg.crisis.companionApp
                           ? isFr
-                            ? "Le numero superviseur enregistre a ete notifie via Twilio (secours API)."
-                            : "Your saved supervisor number was notified via Twilio (API fallback)."
+                            ? "Votre proche (compagnon) a ete notifie dans l'application."
+                            : language === "ar"
+                            ? "تم إخطار قريبك (المرافق) عبر التطبيق."
+                            : "Your linked companion was notified in the app."
+                          : msg.crisis.smsSent
+                          ? isFr
+                            ? "Votre contact d'urgence a ete notifie par message."
+                            : "Your emergency contact was notified by message."
                           : isFr
-                          ? "Contact durgence notifie sur WhatsApp (apres signaux repetes; Twilio cote service RAG)."
-                          : "Emergency contact notified on WhatsApp (after repeated crisis signals; Twilio on RAG service)."}
+                          ? "Votre contact d'urgence a ete notifie."
+                          : "Your emergency contact was notified."}
                       </div>
                     )}
                     {/* Technical analysis data is intentionally not shown to the patient
@@ -618,7 +682,7 @@ export default function CompanionChat() {
               ))}
               {loading && (
                 <div className="flex justify-start">
-                  <div className="rounded-xl border border-slate-200/80 bg-slate-50 px-2.5 py-1.5 text-xs text-textSecondary">
+                  <div className="rounded-xl border border-slate-200/80 bg-slate-50 px-2.5 py-1.5 text-xs text-textSecondary dark:border-slate-600 dark:bg-slate-800">
                     {isFr ? "Reflexion…" : "Thinking…"}
                   </div>
                 </div>
@@ -626,7 +690,7 @@ export default function CompanionChat() {
               <div ref={messagesEndRef} />
             </div>
 
-            <div className="shrink-0 border-t border-slate-200/80 bg-white/90 px-3 py-2">
+            <div className="shrink-0 border-t border-slate-200/80 bg-white/90 px-3 py-2 dark:border-slate-700 dark:bg-slate-900/90">
               <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
                 <div className="min-w-0 flex-1">
                   <InputField
@@ -731,7 +795,7 @@ export default function CompanionChat() {
             onClick={() => setXaiGalleryOpen(false)}
           >
             <div
-              className="flex max-h-[min(92dvh,900px)] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl"
+              className="flex max-h-[min(92dvh,900px)] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-600 dark:bg-slate-900"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex shrink-0 items-center justify-between gap-2 border-b border-slate-200 px-4 py-3">

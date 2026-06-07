@@ -4,7 +4,7 @@ import os
 import sys
 import warnings
 from typing import Optional
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urlunparse
 
 from qdrant_client import QdrantClient
 
@@ -25,6 +25,32 @@ def _make_qdrant_client(**kwargs) -> QdrantClient:
         return QdrantClient(**kwargs)
 
 
+
+def _normalize_qdrant_url(raw_url: str) -> str:
+    """Strip the :6333 port that Qdrant Cloud UI copies into the URL.
+
+    Qdrant Cloud listens on HTTPS (port 443). Appending :6333 causes
+    SSL handshake failures. This helper silently removes the port when
+    the host ends with ``.cloud.qdrant.io`` and the port is 6333.
+    """
+    url = raw_url.strip().rstrip("/")
+    parsed = urlparse(url)
+    if not (parsed.scheme and parsed.netloc):
+        return url
+
+    host = (parsed.hostname or "").lower()
+    if host.endswith(".cloud.qdrant.io") and parsed.port == 6333:
+        netloc = parsed.hostname or ""
+        if parsed.username:
+            userinfo = parsed.username
+            if parsed.password:
+                userinfo += f":{parsed.password}"
+            netloc = f"{userinfo}@{netloc}"
+        url = urlunparse((parsed.scheme, netloc, parsed.path, "", parsed.query, parsed.fragment))
+
+    return url.rstrip("/")
+
+
 def build_qdrant_client(
     url: Optional[str] = None,
     api_key: Optional[str] = None,
@@ -43,7 +69,7 @@ def build_qdrant_client(
         api_key = api_key.strip() or None
 
     if url:
-        url = url.rstrip("/")
+        url = _normalize_qdrant_url(url)
         kwargs: dict = {"url": url}
         if api_key:
             kwargs["api_key"] = api_key
@@ -54,7 +80,7 @@ def build_qdrant_client(
 
     if host_val.startswith("http://") or host_val.startswith("https://"):
         parsed = urlparse(host_val)
-        base = f"{parsed.scheme}://{parsed.netloc}".rstrip("/")
+        base = _normalize_qdrant_url(f"{parsed.scheme}://{parsed.netloc}")
         kwargs = {"url": base}
         if api_key:
             kwargs["api_key"] = api_key

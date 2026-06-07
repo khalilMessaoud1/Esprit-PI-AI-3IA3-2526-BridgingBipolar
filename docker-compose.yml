@@ -1,4 +1,3 @@
-version: "3.9"
 services:
   postgres:
     image: postgres:15
@@ -11,5 +10,118 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+
+  web:
+    image: node:20-alpine
+    container_name: bridgingbipolar-web
+    working_dir: /app/apps/web
+    volumes:
+      - .:/app
+    ports:
+      - "3000:3000"
+    command: sh -c "npm install && npm run dev -- -H 0.0.0.0 -p 3000"
+
+  api:
+    image: node:20-alpine
+    container_name: bridgingbipolar-api
+    working_dir: /app
+    volumes:
+      - .:/app
+    ports:
+      - "4001:4001"
+    environment:
+      DATABASE_URL: postgresql://bridging:bridging@postgres:5432/bridgingbipolar
+    depends_on:
+      - postgres
+    command: >
+      sh -c "apk add --no-cache openssl &&
+      npm install &&
+      npx prisma generate --schema apps/api/prisma/schema.prisma &&
+      npx prisma migrate deploy --schema apps/api/prisma/schema.prisma &&
+      npm --workspace apps/api run start:dev"
+
+  ml:
+    image: python:3.11-slim
+    container_name: bridgingbipolar-ml
+    working_dir: /app/apps/ml-service
+    volumes:
+      - .:/app
+    ports:
+      - "5000:5000"
+    command: >
+      sh -c "pip install --no-cache-dir --timeout 120 --retries 5 -r requirements.txt &&
+      uvicorn main:app --host 0.0.0.0 --port 5000"
+
+  handwriting:
+    image: python:3.11-slim
+    container_name: bridgingbipolar-handwriting
+    working_dir: /app/apps/handwriting-api
+    volumes:
+      - .:/app
+    ports:
+      - "5002:5002"
+    command: >
+      sh -c "pip install --no-cache-dir --timeout 120 --retries 5 -r requirements.txt &&
+      python app.py"
+
+  prescription:
+    image: python:3.11-slim
+    container_name: bridgingbipolar-prescription
+    working_dir: /app/apps/prescription-service
+    volumes:
+      - .:/app
+    ports:
+      - "5020:5020"
+    command: >
+      sh -c "pip install --no-cache-dir --timeout 120 --retries 5 -r requirements.txt &&
+      uvicorn app.main:app --host 0.0.0.0 --port 5020"
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: bridgingbipolar-qdrant
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant_data:/qdrant/storage
+
+  rag:
+    image: python:3.11-slim
+    container_name: bridgingbipolar-rag
+    working_dir: /app/rag_api
+    volumes:
+      - .:/app
+    ports:
+      - "8090:8090"
+    env_file:
+      - ./inetgration/youssef/.env
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      - qdrant
+    environment:
+      OLLAMA_URL: http://host.docker.internal:11434/api/generate
+      OLLAMA_CHAT_MODEL: ${OLLAMA_CHAT_MODEL:-llama3.2:3b}
+      OLLAMA_VISION_MODEL: ${OLLAMA_VISION_MODEL:-llava:7b}
+      QDRANT_HOST: qdrant
+      QDRANT_PORT: 6333
+      NEO4J_URI: bolt://host.docker.internal:7687
+    command: >
+      sh -c "pip install --no-cache-dir --timeout 120 --retries 5 -r requirements-lite.txt &&
+      uvicorn app.main:app --host 0.0.0.0 --port 8090"
+
+  phase-monitor:
+    image: python:3.10-slim
+    container_name: bridgingbipolar-phase-monitor
+    working_dir: /app/inetgration/integration_kh
+    volumes:
+      - .:/app
+    ports:
+      - "5003:5003"
+    command: >
+      sh -c "pip install --no-cache-dir --timeout 120 --retries 5 -r requirements.txt &&
+      uvicorn main:app --host 0.0.0.0 --port 5003"
+
 volumes:
   postgres_data:
+  qdrant_data:

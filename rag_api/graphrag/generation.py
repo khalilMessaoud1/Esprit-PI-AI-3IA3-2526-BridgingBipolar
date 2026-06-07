@@ -6,7 +6,12 @@ from typing import Any, Dict, List, Optional, Sequence
 
 import requests
 
-from graphrag.ollama_env import ollama_generate_url
+from graphrag.ollama_env import (
+    default_ollama_chat_model,
+    ollama_generate_options,
+    ollama_generate_timeout_sec,
+    ollama_generate_url,
+)
 
 SYSTEM_PROMPT = """You are a warm, caring companion for people living with bipolar disorder — like a knowledgeable friend who truly understands what they're going through. Your role is to support, validate, and gently educate, not to lecture or diagnose.
 
@@ -133,6 +138,44 @@ def _strip_chunk_tokens(text: str) -> str:
     text = re.sub(r"\[chunk_[^\]]+\]\s*", "", text, flags=re.IGNORECASE)
     text = re.sub(r"\[passage\s*\d+\]\s*", "", text, flags=re.IGNORECASE)
     return text.strip()
+
+
+def _strip_bipolar_deflection_on_photo(text: str, retrieval_result: Dict) -> str:
+    """Remove generic bipolar-education pivots when the turn was a photo question."""
+    photo_turn = retrieval_result.get("photo_turn")
+    if not isinstance(photo_turn, dict) or not text:
+        return text
+    patterns = (
+        r"(?is)\s*I\s+sense\s+that\s+you['\u2019]?re\s+feeling[^.?!]*overwhelmed[^.?!]*bipolar[^.?!]*[.?!]\s*",
+        r"(?is)\s*It\s+sounds\s+like\s+you['\u2019]?re\s+feeling[^.?!]*overwhelmed[^.?!]*bipolar[^.?!]*[.?!]\s*",
+        r"(?is)\s*Can\s+you\s+tell\s+me\s+more\s+about\s+what\s+specifically\s+is\s+making\s+you\s+feel\s+this\s+way\?\s*",
+    )
+    out = text
+    for pat in patterns:
+        out = re.sub(pat, " ", out, count=1)
+    return re.sub(r"\s{2,}", " ", out).strip()
+
+
+def _strip_model_boilerplate(text: str) -> str:
+    """Remove common Llama/meta preambles and markdown section labels."""
+    t = (text or "").strip()
+    if not t:
+        return t
+    t = re.sub(
+        r"(?is)^(?:sure,?\s*)?(?:here'?s|here is)\s+(?:the\s+)?response(?: you requested)?:?\s*",
+        "",
+        t,
+        count=1,
+    ).strip()
+    t = re.sub(
+        r"(?im)^\**\s*(?:validation|support|balance|response)\s*:\s*\**\s*",
+        "",
+        t,
+        count=1,
+    ).strip()
+    # Drop leading markdown bold wrapper lines like "**Validation:**"
+    t = re.sub(r"^\*\*[^*\n]{1,40}\*\*\s*", "", t, count=1).strip()
+    return t
 
 
 def _strip_leading_salutation_with_name(text: str, first_name: str) -> str:
@@ -315,7 +358,24 @@ def build_user_prompt(
     else:
         profile_line = "USER PROFILE: name=(unknown)\n"
     critical = ""
-    if _history_signals_day_relations_already_covered(conversation_history, query):
+    photo_turn = retrieval_result.get("photo_turn")
+    if isinstance(photo_turn, dict):
+        pnote = str(photo_turn.get("note") or "").strip()
+        pcap = str(photo_turn.get("caption") or "").strip()
+        critical = (
+            "\nPHOTO TURN (critical — follow exactly):\n"
+            f"- User text with the photo: {pnote or '(none)'}\n"
+            f"- Image description: {pcap or '(unavailable)'}\n"
+            "- The user is asking about WHAT IS IN THEIR PHOTO. Answer using the image description "
+            "(place, object, sign text, building, etc.).\n"
+            "- Do NOT change the subject to bipolar disorder, mental health education, or "
+            '"feeling overwhelmed by information".\n'
+            "- Do NOT ask therapy checklist questions (day, work, family) unless they explicitly "
+            "brought up mood or relationships in their text.\n"
+            "- If the description is partial or garbled, say what you can infer and offer one short "
+            "clarifying question about the photo — not a generic mental-health prompt.\n"
+        )
+    elif _history_signals_day_relations_already_covered(conversation_history, query):
         critical = (
             "\nCRITICAL (must follow): The conversation already covers how the day is going and/or "
             "family or work / mood impact — or the user answered those angles (in any language). "
@@ -347,12 +407,83 @@ def build_user_prompt(
     return base
 
 
+def _ollama_error_detail(response: requests.Response) -> str:
+    try:
+        data = response.json()
+        if isinstance(data, dict) and data.get("error"):
+            return str(data["error"])
+    except Exception:
+        pass
+    text = (response.text or "").strip()
+    return text[:500] if text else f"HTTP {response.status_code}"
+
+
+def _format_ollama_failure(model: str, url: str, status: int, detail: str) -> str:
+    if status == 404:
+        return (
+            f"Ollama model '{model}' is not installed. "
+            f"Run: ollama pull {model}  (then retry the chat)."
+        )
+    if status in (500, 503):
+        return (
+            f"Ollama could not generate a reply (HTTP {status}, model={model}). "
+            "This often happens when voice transcription and the AI model compete for RAM — "
+            "close other apps, keep the Ollama app open, wait a few seconds, and retry. "
+            f"Detail: {detail or url}"
+        )
+    return f"Ollama request failed (HTTP {status}, model={model}): {detail or url}"
+
+
+class OllamaGenerateError(RuntimeError):
+    def __init__(self, message: str, *, status_code: int = 0) -> None:
+        super().__init__(message)
+        self.status_code = status_code
+
+
+def _post_ollama_generate(
+    *,
+    url: str,
+    model: str,
+    prompt: str,
+    temperature: float,
+    num_ctx: int,
+    num_predict: int,
+) -> dict:
+    payload: Dict[str, Any] = {
+        "model": model,
+        "prompt": prompt,
+        "stream": False,
+        "options": {
+            "temperature": temperature,
+            "num_predict": num_predict,
+            "num_ctx": num_ctx,
+        },
+    }
+    keep_alive = (os.getenv("OLLAMA_KEEP_ALIVE") or "5m").strip()
+    if keep_alive:
+        payload["keep_alive"] = keep_alive
+    timeout = ollama_generate_timeout_sec()
+    response = requests.post(url, json=payload, timeout=timeout)
+    try:
+        response.raise_for_status()
+    except requests.HTTPError as exc:
+        status = response.status_code
+        raise OllamaGenerateError(
+            _format_ollama_failure(model, url, status, _ollama_error_detail(response)),
+            status_code=status,
+        ) from exc
+    data = response.json()
+    if not isinstance(data, dict):
+        raise RuntimeError(f"Ollama returned unexpected JSON for model={model}")
+    return data
+
+
 def generate_with_ollama(
     query: str,
     retrieval_result: Dict,
     user_profile: Optional[Dict[str, str]] = None,
     conversation_history: Optional[Sequence[Dict[str, str]]] = None,
-    model: str = "qwen2.5:3b-instruct",
+    model: str = "",
     ollama_url: Optional[str] = None,
     strip_citations: bool = True,
     debug_prompt: Optional[bool] = None,
@@ -364,6 +495,7 @@ def generate_with_ollama(
     voice_debug_out: Optional[Dict[str, Any]] = None,
 ) -> str:
     ollama_url = ollama_url or ollama_generate_url()
+    chat_model = (model or "").strip() or default_ollama_chat_model()
     if debug_prompt is None:
         debug_prompt = os.getenv("RAG_DEBUG_PROMPT", "").strip().lower() in ("1", "true", "yes")
 
@@ -403,22 +535,35 @@ def generate_with_ollama(
         )
 
     gen_temp = 0.15 if temperature is None else float(temperature)
-    payload: Dict[str, Any] = {
-        "model": model,
-        "prompt": full_prompt,
-        "stream": False,
-        "options": {
-            "temperature": gen_temp,
-            "num_predict": 400,
-            "num_ctx": 4096,
-        },
-    }
-    response = requests.post(ollama_url, json=payload, timeout=120)
-    response.raise_for_status()
-    data = response.json()
+    opts = ollama_generate_options(temperature=gen_temp)
+    num_ctx = int(opts["num_ctx"])
+    num_predict = int(opts["num_predict"])
+    retry_ctx = max(512, num_ctx // 2)
+    retry_predict = max(64, num_predict // 2)
+    try:
+        data = _post_ollama_generate(
+            url=ollama_url,
+            model=chat_model,
+            prompt=full_prompt,
+            temperature=gen_temp,
+            num_ctx=num_ctx,
+            num_predict=num_predict,
+        )
+    except OllamaGenerateError as exc:
+        if exc.status_code not in (500, 503) or (retry_ctx >= num_ctx and retry_predict >= num_predict):
+            raise
+        data = _post_ollama_generate(
+            url=ollama_url,
+            model=chat_model,
+            prompt=full_prompt,
+            temperature=gen_temp,
+            num_ctx=retry_ctx,
+            num_predict=retry_predict,
+        )
     text = (data.get("response") or "").strip()
     if not text:
         return "I do not have enough evidence in the materials to answer safely. Please check with a mental health professional."
+    text = _strip_model_boilerplate(text)
     if strip_citations:
         text = _strip_chunk_tokens(text)
     display_name = ((user_profile or {}).get("name") or "").strip()
@@ -426,4 +571,5 @@ def generate_with_ollama(
         text = _strip_leading_salutation_with_name(text, display_name)
     if _history_signals_day_relations_already_covered(conversation_history, query):
         text = _strip_stock_day_relations_questions(text)
+    text = _strip_bipolar_deflection_on_photo(text, retrieval_result)
     return text

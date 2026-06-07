@@ -83,7 +83,7 @@ export default function AssessmentPage() {
                     ? "border-emerald-300 bg-emerald-50 text-emerald-700"
                     : "border-slate-200 bg-slate-50 text-slate-400"
                 }`}>
-                  <span>{s.emoji}</span> {s.label}
+                  <span className="emoji">{s.emoji}</span> {s.label}
                 </div>
               </div>
             ))}
@@ -110,7 +110,7 @@ export default function AssessmentPage() {
           {step === "done" && (
             <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm space-y-6">
               <div className="text-center">
-                <div className="text-5xl mb-3">🎉</div>
+                <div className="emoji text-5xl mb-3">🎉</div>
                 <h2 className="text-xl font-bold text-slate-900">{ta.done}</h2>
                 <p className="mt-1 text-sm text-slate-500">{ta.doneSub}</p>
               </div>
@@ -119,12 +119,12 @@ export default function AssessmentPage() {
                 {/* HDRS result */}
                 <div className={`rounded-2xl border p-5 ${hdrsLevel.bg}`}>
                   <div className="flex items-center gap-2 mb-2">
-                    <span className="text-xl">📉</span>
+                    <span className="emoji text-xl">📉</span>
                     <span className="text-sm font-bold text-slate-800">{ta.hdrsLabel}</span>
                   </div>
                   <div className="text-3xl font-bold text-slate-900 mb-1">{hdrs} <span className="text-base font-normal text-slate-400">/ 52</span></div>
                   <div className={`flex items-center gap-1.5 text-sm font-semibold ${hdrsLevel.color}`}>
-                    <span>{hdrsLevel.emoji}</span> {hdrsLevel.label}
+                    <span className="emoji">{hdrsLevel.emoji}</span> {hdrsLevel.label}
                   </div>
                   <div className="mt-3 h-2 rounded-full bg-white/60 overflow-hidden">
                     <div className="h-full rounded-full" style={{ width: `${Math.min(100, (hdrs / 52) * 100)}%`, background: hdrs > 18 ? "#ef4444" : hdrs > 13 ? "#f97316" : "#f59e0b" }} />
@@ -134,12 +134,12 @@ export default function AssessmentPage() {
                 {/* YMRS result */}
                 <div className={`rounded-2xl border p-5 ${ymrsLevel.bg}`}>
                   <div className="flex items-center gap-2 mb-2">
-                    <span className="text-xl">📈</span>
+                    <span className="emoji text-xl">📈</span>
                     <span className="text-sm font-bold text-slate-800">{ta.ymrsLabel}</span>
                   </div>
                   <div className="text-3xl font-bold text-slate-900 mb-1">{ymrs} <span className="text-base font-normal text-slate-400">/ 60</span></div>
                   <div className={`flex items-center gap-1.5 text-sm font-semibold ${ymrsLevel.color}`}>
-                    <span>{ymrsLevel.emoji}</span> {ymrsLevel.label}
+                    <span className="emoji">{ymrsLevel.emoji}</span> {ymrsLevel.label}
                   </div>
                   <div className="mt-3 h-2 rounded-full bg-white/60 overflow-hidden">
                     <div className="h-full rounded-full" style={{ width: `${Math.min(100, (ymrs / 60) * 100)}%`, background: ymrs > 30 ? "#ef4444" : ymrs > 20 ? "#f97316" : "#f59e0b" }} />

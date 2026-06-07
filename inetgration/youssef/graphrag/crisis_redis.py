@@ -23,7 +23,7 @@ class CrisisRedisStore:
     key_prefix: str = "graphrag:crisis"
     ttl_strikes_sec: int = 90 * 24 * 3600
     ttl_parent_sent_sec: int = 30 * 24 * 3600
-    strike_threshold: int = 3
+    strike_threshold: int = 1
     available: bool = False
     last_error: Optional[str] = None
 
@@ -33,7 +33,7 @@ class CrisisRedisStore:
             key_prefix=(os.getenv("CRISIS_REDIS_KEY_PREFIX") or "graphrag:crisis").strip(),
             ttl_strikes_sec=max(3600, _env_int("CRISIS_STRIKES_TTL_SECONDS", 90 * 24 * 3600)),
             ttl_parent_sent_sec=max(3600, _env_int("CRISIS_PARENT_COOLDOWN_SECONDS", 30 * 24 * 3600)),
-            strike_threshold=max(1, _env_int("CRISIS_STRIKE_THRESHOLD", 3)),
+            strike_threshold=max(1, _env_int("CRISIS_STRIKE_THRESHOLD", 1)),
         )
         redis_url = (os.getenv("REDIS_URL") or "").strip()
         if not redis_url:

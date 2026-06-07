@@ -39,6 +39,7 @@ export default function SignupPage() {
   const [patientCodeError, setPatientCodeError] = useState<string | null>(null);
   const [role, setRole] = useState<UserRole>("PATIENT");
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -56,14 +57,17 @@ export default function SignupPage() {
         setError(t.passwordMismatch);
         return;
       }
+      if (role === "PATIENT" && !acceptedTerms) {
+        setError(signupCopy.termsRequired);
+        return;
+      }
       const rawPhone = supervisorPhone.replace(/\s+/g, "").trim();
-      const normalizedPhone = rawPhone ? `+216${rawPhone.replace(/^0+/, "")}` : "";
-      if (role === "PATIENT" && !normalizedPhone) {
+      if (role === "PATIENT" && !rawPhone) {
         setError("Emergency supervisor phone is required for patient accounts.");
         return;
       }
-      if (rawPhone && !/^\d{8}$/.test(rawPhone)) {
-        setError("Supervisor phone must be 8 digits (Tunisia).");
+      if (rawPhone && !/^(\+216\d{8,14}|\d{8})$/.test(rawPhone)) {
+        setError("Supervisor phone must be 8 digits (Tunisia), or +216 followed by 8 digits.");
         return;
       }
       // PATIENT or RELATIVE: validate code before creating account
@@ -110,7 +114,7 @@ export default function SignupPage() {
       setError(null);
 
       const linkedCode = patientCode.trim().toUpperCase() || undefined;
-      let nextUser = await signup(name, email, password, birthDate, role, normalizedPhone || undefined, linkedCode);
+      let nextUser = await signup(name, email, password, birthDate, role, rawPhone || undefined, linkedCode);
 
       if (avatarFile) {
         const formData = new FormData();
@@ -175,7 +179,10 @@ export default function SignupPage() {
                 name="role"
                 value={opt.value}
                 checked={role === opt.value}
-                onChange={() => setRole(opt.value)}
+                onChange={() => {
+                  setRole(opt.value);
+                  if (opt.value !== "PATIENT") setAcceptedTerms(false);
+                }}
                 className="accent-primary"
               />
               <span className="font-medium text-textPrimary">{opt.label}</span>
@@ -265,6 +272,27 @@ export default function SignupPage() {
         value={confirmPassword}
         onChange={(event) => setConfirmPassword(event.target.value)}
       />
+      {role === "PATIENT" && (
+        <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200/80 bg-slate-50/80 px-3 py-3 text-sm dark:border-slate-600 dark:bg-slate-900/40">
+          <input
+            type="checkbox"
+            checked={acceptedTerms}
+            onChange={(e) => setAcceptedTerms(e.target.checked)}
+            className="mt-0.5 h-4 w-4 shrink-0 accent-primary"
+          />
+          <span className="leading-snug text-textPrimary dark:text-slate-200">
+            {signupCopy.acceptTermsPrefix}{" "}
+            <Link
+              href="/terms"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-semibold text-primary underline underline-offset-2 hover:opacity-90 dark:text-sky-400"
+            >
+              {signupCopy.termsLink}
+            </Link>
+          </span>
+        </label>
+      )}
       <div className="text-xs text-textSecondary">
         {t.alreadyHave}{" "}
         <Link href="/login" className="text-primary">
@@ -272,7 +300,7 @@ export default function SignupPage() {
         </Link>
       </div>
       {error && <p className="text-sm text-red-500">{error}</p>}
-      <Button onClick={handleSubmit} disabled={submitting}>
+      <Button onClick={handleSubmit} disabled={submitting || (role === "PATIENT" && !acceptedTerms)}>
         {submitting ? t.signupSubmitting : t.signupButton}
       </Button>
     </AuthLayout>

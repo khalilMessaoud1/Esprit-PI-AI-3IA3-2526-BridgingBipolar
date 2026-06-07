@@ -59,6 +59,11 @@ export class AuthService {
   }
 
   async signup(dto: SignupDto) {
+    const existing = await this.usersService.findByEmail(dto.email);
+    if (existing) {
+      throw new BadRequestException("This email is already registered. Try logging in instead.");
+    }
+
     const passwordHash = await bcrypt.hash(dto.password, 12);
     const role: UserRole =
       dto.role === "DOCTOR" ? UserRole.DOCTOR : dto.role === "RELATIVE" ? UserRole.RELATIVE : UserRole.PATIENT;

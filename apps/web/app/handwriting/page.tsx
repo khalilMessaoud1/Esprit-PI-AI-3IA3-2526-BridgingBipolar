@@ -5,10 +5,11 @@ import Navbar from "../../components/Navbar";
 import ProtectedRoute from "../../components/ProtectedRoute";
 import { useAuth } from "../../hooks/useAuth";
 import { useLanguage } from "../../hooks/useLanguage";
+import { useTheme } from "../../hooks/useTheme";
 import { uiText } from "../../lib/i18n";
 import { apiFetch } from "../../lib/api";
 
-const HANDWRITING_API = process.env.NEXT_PUBLIC_HANDWRITING_API_URL || "http://localhost:5002";
+const HANDWRITING_API = process.env.NEXT_PUBLIC_HANDWRITING_API_URL || "http://127.0.0.1:5002";
 
 const MIN_POINTS = 80;
 const MIN_PATH = 400;
@@ -536,6 +537,7 @@ function computeQC(rep: Point[]): QCResult {
 export default function HandwritingPage() {
   const { user } = useAuth();
   const { language } = useLanguage();
+  const { themeMode } = useTheme();
   const th = uiText[language].handwritingPage;
   // Ref so callbacks always read current translations without re-creating on every language change
   const thRef = useRef(th);
@@ -592,9 +594,22 @@ export default function HandwritingPage() {
   }, [th.ready]);
 
   useEffect(() => {
-    fetch(`${HANDWRITING_API}/health`)
-      .then((r) => setBackendOnline(r.ok))
-      .catch(() => setBackendOnline(false));
+    let cancelled = false;
+    const probe = () => {
+      fetch(`${HANDWRITING_API}/health`)
+        .then((r) => {
+          if (!cancelled) setBackendOnline(r.ok);
+        })
+        .catch(() => {
+          if (!cancelled) setBackendOnline(false);
+        });
+    };
+    probe();
+    const id = window.setInterval(probe, 5000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+    };
   }, []);
 
   /* ── Canvas drawing ─────────────────────────────────────────────────── */
@@ -904,10 +919,14 @@ export default function HandwritingPage() {
   const currentQC = computeQC(currentRep);
   const loopCount = estimateLoopCount(currentRep);
   const loopPct = Math.min(100, Math.round((loopCount / TARGET_LOOPS) * 100));
+  const canvasBg =
+    themeMode === "dark"
+      ? "linear-gradient(180deg, #1e293b 0%, #0f172a 100%)"
+      : "linear-gradient(180deg, #fafbff 0%, #ffffff 100%)";
 
   return (
     <ProtectedRoute>
-      <div className="flex min-h-screen flex-col" style={{ background: "linear-gradient(135deg, #f0f4ff 0%, #faf5ff 50%, #f0fdf4 100%)" }}>
+      <div className="flex min-h-screen flex-col bg-gradient-to-br from-indigo-50 via-purple-50 to-emerald-50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
         <Navbar />
 
         {/* Questionnaire modal */}
@@ -936,13 +955,13 @@ export default function HandwritingPage() {
           {/* Top bar */}
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-indigo-600 shadow-lg text-lg">✍️</div>
+              <div className="emoji flex h-10 w-10 items-center justify-center rounded-2xl bg-indigo-600 text-lg shadow-lg">✍️</div>
               <div>
-                <h1 className="text-xl font-bold text-gray-900">{th.title}</h1>
-                <p className="text-xs text-gray-500">{th.subtitle}</p>
+                <h1 className="text-xl font-bold text-gray-900 dark:text-slate-100">{th.title}</h1>
+                <p className="text-xs text-gray-500 dark:text-slate-400">{th.subtitle}</p>
               </div>
               {user?.name && (
-                <span className="rounded-2xl bg-white/80 border border-gray-200 px-3 py-1 text-xs font-semibold text-gray-600 shadow-sm">
+                <span className="rounded-2xl border border-gray-200 bg-white/80 px-3 py-1 text-xs font-semibold text-gray-600 shadow-sm dark:border-slate-600 dark:bg-slate-800/80 dark:text-slate-300">
                   {user.name}
                 </span>
               )}
@@ -970,23 +989,23 @@ export default function HandwritingPage() {
             <div className="flex flex-col flex-1 gap-4">
 
               {/* Instruction strip */}
-              <div className="rounded-2xl bg-white/90 border border-indigo-100 px-5 py-3 shadow-sm flex items-center gap-4">
-                <span className="font-mono text-2xl font-light tracking-[0.25em] text-indigo-400 select-none">lllllllllllllll</span>
-                <div className="text-xs text-gray-500 border-l border-gray-200 pl-4">
+              <div className="rounded-2xl border border-indigo-100 bg-white/90 px-5 py-3 shadow-sm dark:border-slate-600 dark:bg-slate-800/90 flex items-center gap-4">
+                <span className="select-none font-mono text-2xl font-light tracking-[0.25em] text-indigo-400 dark:text-indigo-300">lllllllllllllll</span>
+                <div className="border-l border-gray-200 pl-4 text-xs text-gray-500 dark:border-slate-600 dark:text-slate-400">
                   {th.instructionStrip}
                 </div>
               </div>
 
               {/* Canvas card */}
-              <div className={`rounded-3xl overflow-hidden border-2 bg-white shadow-xl transition-all duration-300 ${
+              <div className={`overflow-hidden rounded-3xl border-2 bg-white shadow-xl transition-all duration-300 dark:bg-slate-800 ${
                 sessionLocked
-                  ? "border-emerald-400 shadow-emerald-100"
-                  : "border-indigo-200 hover:border-indigo-300"
+                  ? "border-emerald-400 shadow-emerald-100 dark:border-emerald-600 dark:shadow-emerald-950/30"
+                  : "border-indigo-200 hover:border-indigo-300 dark:border-indigo-700 dark:hover:border-indigo-500"
               }`}>
                 {/* Canvas toolbar */}
-                <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100 bg-gray-50/80">
+                <div className="flex items-center justify-between border-b border-gray-100 bg-gray-50/80 px-5 py-3 dark:border-slate-700 dark:bg-slate-900/80">
                   <div className="flex items-center gap-3">
-                    <span className="text-sm font-semibold text-indigo-700">{th.inProgress}</span>
+                    <span className="text-sm font-semibold text-indigo-700 dark:text-indigo-300">{th.inProgress}</span>
                     {sessionLocked && (
                       <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-bold text-emerald-700 border border-emerald-200">
                         {th.locked}
@@ -996,7 +1015,7 @@ export default function HandwritingPage() {
                   <div className="flex items-center gap-3">
                     {/* Loop progress */}
                     <div className="flex items-center gap-2">
-                      <div className="w-28 h-2 bg-gray-200 rounded-full overflow-hidden">
+                      <div className="h-2 w-28 overflow-hidden rounded-full bg-gray-200 dark:bg-slate-700">
                         <div
                           className="h-full rounded-full transition-all duration-300"
                           style={{
@@ -1009,10 +1028,10 @@ export default function HandwritingPage() {
                           }}
                         />
                       </div>
-                      <span className="text-xs font-semibold text-gray-600">{loopCount}/{TARGET_LOOPS}</span>
+                      <span className="text-xs font-semibold text-gray-600 dark:text-slate-300">{loopCount}/{TARGET_LOOPS}</span>
                     </div>
                     {currentRep.length > 1 && (
-                      <span className="text-xs text-gray-400">
+                      <span className="text-xs text-gray-400 dark:text-slate-500">
                         {((currentRep[currentRep.length - 1].t - currentRep[0].t) / 1000).toFixed(0)}s
                       </span>
                     )}
@@ -1030,7 +1049,7 @@ export default function HandwritingPage() {
                     display: "block",
                     touchAction: "none",
                     cursor: sessionLocked ? "default" : "crosshair",
-                    background: "linear-gradient(180deg, #fafbff 0%, #ffffff 100%)",
+                    background: canvasBg,
                   }}
                   onPointerDown={onPointerDown}
                   onPointerMove={onPointerMove}
@@ -1082,7 +1101,7 @@ export default function HandwritingPage() {
                 )}
                 <button
                   onClick={handleReset}
-                  className="rounded-2xl border border-gray-200 bg-white px-5 py-2.5 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-all shadow-sm"
+                  className="rounded-2xl border border-gray-200 bg-white px-5 py-2.5 text-sm font-semibold text-gray-600 shadow-sm transition-all hover:bg-gray-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
                 >
                   {th.newSession}
                 </button>
@@ -1106,20 +1125,20 @@ export default function HandwritingPage() {
             <aside className="xl:w-80 flex-shrink-0 flex flex-col gap-4">
 
               {/* Session info card */}
-              <div className="rounded-2xl bg-white border border-gray-200 p-5 shadow-sm">
-                <div className="mb-3 text-[10px] font-bold uppercase tracking-widest text-gray-400">{th.sessionCard}</div>
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="h-10 w-10 rounded-2xl bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold text-sm">
+              <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+                <div className="mb-3 text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-slate-500">{th.sessionCard}</div>
+                <div className="mb-4 flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-indigo-100 text-sm font-bold text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-200">
                     {user?.name?.[0]?.toUpperCase() || "P"}
                   </div>
                   <div>
-                    <div className="text-sm font-semibold text-gray-900">{user?.name || "Patient"}</div>
-                    <div className="text-[11px] text-gray-400">ID: {patientId || "—"}</div>
+                    <div className="text-sm font-semibold text-gray-900 dark:text-slate-100">{user?.name || "Patient"}</div>
+                    <div className="text-[11px] text-gray-400 dark:text-slate-500">ID: {patientId || "—"}</div>
                   </div>
                 </div>
 
                 {/* Instructions */}
-                <ul className="mt-4 space-y-1.5 text-[11px] leading-relaxed text-gray-600">
+                <ul className="mt-4 space-y-1.5 text-[11px] leading-relaxed text-gray-600 dark:text-slate-400">
                   <li className="flex gap-2"><span className="text-indigo-400">·</span> {th.instrA}</li>
                   <li className="flex gap-2"><span className="text-indigo-400">·</span> {th.instrB}</li>
                   <li className="flex gap-2"><span className="text-indigo-400">·</span> {th.instrC}</li>
@@ -1127,21 +1146,23 @@ export default function HandwritingPage() {
               </div>
 
               {/* Results card */}
-              <div className="rounded-2xl bg-white border border-gray-200 p-5 shadow-sm flex-1">
-                <div className="mb-3 text-[10px] font-bold uppercase tracking-widest text-gray-400">{th.resultCard}</div>
+              <div className="flex flex-1 flex-col rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+                <div className="mb-3 text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-slate-500">{th.resultCard}</div>
 
                 {!apiResult ? (
                   <div className="flex flex-col items-center gap-3 py-10 text-center text-gray-400">
-                    <span className="text-4xl">✍️</span>
-                    <div className="text-sm font-medium text-gray-500">{th.noResult}</div>
-                    <div className="text-xs text-gray-400">{th.noResultSub}</div>
+                    <span className="emoji text-4xl">✍️</span>
+                    <div className="text-sm font-medium text-gray-500 dark:text-slate-400">{th.noResult}</div>
+                    <div className="text-xs text-gray-400 dark:text-slate-500">{th.noResultSub}</div>
                     {!backendOnline && (
                       <div className="mt-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-left text-xs text-amber-700">
                         <div className="font-semibold mb-1">⚠ Service hors ligne</div>
                         <code className="block rounded-lg bg-amber-100 px-2 py-1.5 font-mono text-[10px] mt-1">
+                          cd apps/handwriting-api
+                          <br />
                           npm run dev:handwriting
                         </code>
-                        <div className="mt-1 text-amber-600">Port 5002</div>
+                        <div className="mt-1 text-amber-600">http://127.0.0.1:5002</div>
                       </div>
                     )}
                   </div>
@@ -1256,7 +1277,7 @@ export default function HandwritingPage() {
                   </div>
                 )}
 
-                <p className="mt-5 text-[10px] leading-relaxed text-gray-400">{th.clinicalSupport}</p>
+                <p className="mt-5 text-[10px] leading-relaxed text-gray-400 dark:text-slate-500">{th.clinicalSupport}</p>
               </div>
             </aside>
           </div>

@@ -16,7 +16,15 @@ export class ActivityController {
   @Roles(UserRole.PATIENT)
   async create(
     @CurrentUser() user: { id: string },
-    @Body() body: { sleepHours: number; energyLevel: number; activityNotes?: string }
+    @Body()
+    body: {
+      sleepHours: number;
+      energyLevel?: number;
+      moodLevel?: number;
+      activityLevel?: number;
+      activityNotes?: string;
+      note?: string;
+    }
   ) {
     return this.service.create(user.id, body);
   }

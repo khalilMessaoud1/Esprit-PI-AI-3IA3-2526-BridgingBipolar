@@ -65,6 +65,8 @@ export default function SettingsShell({ children }: Props) {
   const { language } = useLanguage();
   const { logout } = useAuth();
   const s = uiText[language].settings;
+  const isFr = language === "fr";
+  const isAr = language === "ar";
 
   const navLinks: { href: string; label: string; icon: ReactNode }[] = [
     { href: "/settings/profile", label: s.profile, icon: profileIcon },
@@ -81,15 +83,17 @@ export default function SettingsShell({ children }: Props) {
           {/* Settings hero */}
           <div className="rounded-3xl px-6 py-6 shadow-md"
             style={{ background: "linear-gradient(135deg,#6366f1 0%,#8b5cf6 60%,#a78bfa 100%)" }}>
-            <p className="text-indigo-200 text-xs font-semibold uppercase tracking-widest mb-1">⚙️ Préférences</p>
+            <p className="mb-3 px-2 text-[10px] font-bold uppercase tracking-widest text-indigo-200">
+              <span className="emoji">⚙️</span> {isFr ? "Préférences" : isAr ? "التفضيلات" : "Preferences"}
+            </p>
             <h1 className="text-2xl font-bold text-white">{s.title}</h1>
             <p className="mt-1 text-indigo-200 text-sm">{s.subtitle}</p>
           </div>
 
           <div className="grid gap-6 md:grid-cols-[240px_1fr]">
             <aside className="md:sticky md:top-6">
-              <div className="flex min-h-[calc(100vh-280px)] flex-col rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
-                <p className="mb-3 px-2 text-[10px] font-bold uppercase tracking-widest text-slate-400">{s.navLabel}</p>
+              <div className="flex min-h-[calc(100vh-280px)] flex-col rounded-3xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+                <p className="mb-3 px-2 text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">{s.navLabel}</p>
                 <nav className="flex flex-1 flex-col gap-1">
                   {navLinks.map((item) => {
                     const isActive = pathname === item.href;
@@ -98,10 +102,10 @@ export default function SettingsShell({ children }: Props) {
                         className={`flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm font-medium transition-all ${
                           isActive
                             ? "bg-indigo-600 text-white shadow-sm"
-                            : "text-slate-600 hover:bg-indigo-50 hover:text-indigo-700"
+                            : "text-slate-600 hover:bg-indigo-50 hover:text-indigo-700 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-indigo-200"
                         }`}>
                         <span className={`flex h-8 w-8 items-center justify-center rounded-xl text-base ${
-                          isActive ? "bg-white/20" : "bg-slate-100"
+                          isActive ? "bg-white/20" : "bg-slate-100 dark:bg-slate-700"
                         }`}>{item.icon}</span>
                         <span className="flex-1">{item.label}</span>
                         {isActive && <span className="h-1.5 w-1.5 rounded-full bg-white/70 animate-pulse" />}
@@ -109,12 +113,12 @@ export default function SettingsShell({ children }: Props) {
                     );
                   })}
                   <button type="button" onClick={() => logout()}
-                    className="flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm font-medium text-slate-500 hover:bg-red-50 hover:text-red-600 transition-colors mt-1">
-                    <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-slate-100 text-base">{logoutIcon}</span>
+                    className="mt-1 flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm font-medium text-slate-500 transition-colors hover:bg-red-50 hover:text-red-600 dark:text-slate-400 dark:hover:bg-red-950/40 dark:hover:text-red-400">
+                    <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-slate-100 text-base dark:bg-slate-700">{logoutIcon}</span>
                     <span className="flex-1 text-left">{s.logout}</span>
                   </button>
                 </nav>
-                <div className="mt-4 rounded-2xl bg-slate-50 p-3 text-[10px] leading-relaxed text-slate-400">{s.navFooter}</div>
+                <div className="mt-4 rounded-2xl bg-slate-50 p-3 text-[10px] leading-relaxed text-slate-400 dark:bg-slate-900/50 dark:text-slate-500">{s.navFooter}</div>
               </div>
             </aside>
 

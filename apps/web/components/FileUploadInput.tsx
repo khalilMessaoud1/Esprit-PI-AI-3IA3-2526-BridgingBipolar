@@ -128,7 +128,7 @@ export default function FileUploadInput({
       {label && <label className="text-sm text-textSecondary">{label}</label>}
 
       {previewUrl && (
-        <div className="relative mb-2 h-24 w-24 overflow-hidden rounded-lg border border-slate-200">
+        <div className="relative mb-2 h-24 w-24 overflow-hidden rounded-lg border border-slate-200 dark:border-slate-600">
           <img
             src={resolveMediaUrl(previewUrl)}
             alt="Preview"
@@ -142,8 +142,8 @@ export default function FileUploadInput({
         onClick={() => inputRef.current?.click()}
         disabled={uploading}
         className={clsx(
-          "rounded-xl border-2 border-dashed border-slate-300 px-4 py-8 text-center text-sm transition-colors",
-          "hover:border-primary hover:bg-slate-50",
+          "rounded-xl border-2 border-dashed border-slate-300 px-4 py-8 text-center text-sm transition-colors dark:border-slate-600 dark:bg-slate-800/40",
+          "hover:border-primary hover:bg-slate-50 dark:hover:bg-slate-800/70",
           uploading && "cursor-not-allowed opacity-50",
           "focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
         )}

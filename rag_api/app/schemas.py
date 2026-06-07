@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from typing import Any, Dict, List, Literal, Optional
 
 from pydantic import BaseModel, Field
@@ -23,9 +24,9 @@ class ChatRequest(BaseModel):
     conversation_history: List[ChatMessage] = Field(default_factory=list)
     user_id: str = Field(..., min_length=1, description="Friend app user id (UUID string)")
     user_profile: Optional[Dict[str, str]] = None
-    top_k: int = 12
-    graph_hops: int = 1
-    rerank_top_n: int = 8
+    top_k: int = Field(default_factory=lambda: int(os.getenv("RAG_TOP_K", "6") or "6"))
+    graph_hops: int = Field(default_factory=lambda: int(os.getenv("RAG_GRAPH_HOPS", "0") or "0"))
+    rerank_top_n: int = Field(default_factory=lambda: int(os.getenv("RAG_RERANK_TOP_N", "4") or "4"))
     model: Optional[str] = None
     include_retrieval: bool = False
     keystroke_events: Optional[List[Dict[str, Any]]] = None

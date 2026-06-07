@@ -1,0 +1,38 @@
+# ── Core web stack ────────────────────────────────────────────────────────────
+fastapi
+uvicorn
+python-dotenv
+pydantic
+pydantic-settings
+python-multipart
+httpx
+requests
+
+# ── Data stores ───────────────────────────────────────────────────────────────
+redis
+neo4j
+qdrant-client
+
+# ── Embeddings (CPU-only torch — keeps the image ~1.5 GB lighter than the
+#    default CUDA wheel; sentence-transformers is required by retrieval.py) ────
+numpy
+pandas
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.3.1+cpu
+sentence-transformers
+
+# ── Text utilities ────────────────────────────────────────────────────────────
+langdetect
+
+# ── Image handling ────────────────────────────────────────────────────────────
+Pillow
+
+# ── TTS / crisis alerts ───────────────────────────────────────────────────────
+edge-tts
+twilio
+
+# ── Voice / speech-to-text (OPTIONAL) ────────────────────────────────────────
+# Uncomment the two lines below only if you enable the /api/voice endpoint.
+# faster-whisper adds ~450 MB (ctranslate2 + whisper weights) to the image.
+# faster-whisper
+# imageio-ffmpeg

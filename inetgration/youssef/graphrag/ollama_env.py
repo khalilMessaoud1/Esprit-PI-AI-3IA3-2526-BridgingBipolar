@@ -39,7 +39,31 @@ def ollama_chat_url() -> str:
 
 
 def default_ollama_chat_model() -> str:
-    return (os.getenv("OLLAMA_CHAT_MODEL") or os.getenv("OLLAMA_MODEL") or "qwen2.5:3b-instruct").strip()
+    return (os.getenv("OLLAMA_CHAT_MODEL") or os.getenv("OLLAMA_MODEL") or "llama3.2:3b").strip()
+
+
+def _env_int(name: str, default: int, lo: int, hi: int) -> int:
+    raw = (os.getenv(name) or "").strip()
+    if not raw:
+        return default
+    try:
+        value = int(raw)
+    except ValueError:
+        return default
+    return max(lo, min(hi, value))
+
+
+def ollama_generate_options(*, temperature: float) -> dict:
+    """Low-memory-friendly defaults; override with OLLAMA_NUM_CTX / OLLAMA_NUM_PREDICT."""
+    return {
+        "temperature": temperature,
+        "num_predict": _env_int("OLLAMA_NUM_PREDICT", 256, 64, 1024),
+        "num_ctx": _env_int("OLLAMA_NUM_CTX", 2048, 512, 8192),
+    }
+
+
+def ollama_generate_timeout_sec() -> int:
+    return _env_int("OLLAMA_GENERATE_TIMEOUT_SEC", 180, 30, 600)
 
 
 def default_ollama_vision_model() -> str:

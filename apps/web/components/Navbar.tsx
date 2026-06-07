@@ -64,8 +64,8 @@ export default function Navbar() {
   const linkBase = "flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-medium transition-all";
   const linkClass = (href: string) =>
     isActive(href)
-      ? `${linkBase} bg-indigo-100 text-indigo-700`
-      : `${linkBase} text-slate-600 hover:bg-slate-100 hover:text-slate-900`;
+      ? `${linkBase} bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-200`
+      : `${linkBase} text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white`;
 
   const patientLinks: { href: string; key: string; role?: string }[] = [
     { href: "/dashboard",        key: "dashboard" },
@@ -90,7 +90,9 @@ export default function Navbar() {
 
   return (
     <nav className={`sticky top-0 z-40 w-full border-b transition-all duration-200 ${
-      scrolled ? "border-slate-200/80 bg-white/95 shadow-sm backdrop-blur-md" : "border-transparent bg-white/80 backdrop-blur-sm"
+      scrolled
+        ? "border-slate-200/80 bg-white/95 shadow-sm backdrop-blur-md dark:border-slate-700 dark:bg-slate-900/95"
+        : "border-transparent bg-white/80 backdrop-blur-sm dark:bg-slate-900/80"
     }`}>
       <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-2.5 sm:px-6">
 
@@ -98,8 +100,8 @@ export default function Navbar() {
         <Link href={homeHref} className="flex items-center gap-2.5">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/logo.svg" alt="BridgingBipolar" className="h-8 w-8 drop-shadow-sm" />
-          <span className="text-sm font-bold tracking-tight text-slate-900">BridgingBipolar</span>
-          <span className="hidden rounded-lg bg-indigo-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-indigo-700 sm:inline">
+          <span className="text-sm font-bold tracking-tight text-slate-900 dark:text-slate-100">BridgingBipolar</span>
+          <span className="hidden rounded-lg bg-indigo-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-200 sm:inline">
             {nav.monitoring}
           </span>
         </Link>
@@ -110,7 +112,7 @@ export default function Navbar() {
           !onAuthPage && (
             <div className="flex items-center gap-2">
               <Link href="/login"
-                className="rounded-xl px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 transition-colors">
+                className="rounded-xl px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 transition-colors dark:text-slate-300 dark:hover:bg-slate-800">
                 {nav.login}
               </Link>
               <Link href="/signup"
@@ -125,14 +127,14 @@ export default function Navbar() {
             {user.role === "DOCTOR"
               ? doctorLinks.map(({ href, key }) => (
                   <Link key={href} href={href} className={linkClass(href)}>
-                    <span>{NAV_ICONS[key]}</span>
+                    <span className="emoji">{NAV_ICONS[key]}</span>
                     <span>{nav[key]}</span>
                   </Link>
                 ))
               : user.role === "RELATIVE"
               ? relativeLinks.map(({ href, key }) => (
                   <Link key={href} href={href} className={linkClass(href)}>
-                    <span>{NAV_ICONS[key]}</span>
+                    <span className="emoji">{NAV_ICONS[key]}</span>
                     <span className="hidden sm:inline">{(nav as Record<string, string>)[key]}</span>
                   </Link>
                 ))
@@ -140,7 +142,7 @@ export default function Navbar() {
                   .filter((l) => !l.role || l.role === user.role)
                   .map(({ href, key }) => (
                     <Link key={href} href={href} className={linkClass(href)}>
-                      <span>{NAV_ICONS[key]}</span>
+                      <span className="emoji">{NAV_ICONS[key]}</span>
                       <span className="hidden sm:inline">{(nav as Record<string, string>)[key]}</span>
                     </Link>
                   ))
@@ -152,15 +154,15 @@ export default function Navbar() {
                 <button
                   type="button"
                   onClick={() => setCodePopupOpen(v => !v)}
-                  className="flex items-center gap-2 rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-sm font-semibold text-sky-800 hover:bg-sky-100 transition-colors"
+                  className="flex items-center gap-2 rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-sm font-semibold text-sky-800 hover:bg-sky-100 transition-colors dark:border-sky-800 dark:bg-sky-950/50 dark:text-sky-200 dark:hover:bg-sky-900/50"
                 >
-                  <span>👨‍⚕️</span>
+                  <span className="emoji">👨‍⚕️</span>
                   <span className="hidden sm:inline max-w-[120px] truncate">{user.name}</span>
                   <span className="text-sky-400 text-[10px]">▲</span>
                 </button>
 
                 {codePopupOpen && (
-                  <div className="absolute bottom-[calc(100%+8px)] right-0 z-50 w-72 rounded-2xl border border-sky-200 bg-white p-5 shadow-2xl">
+                  <div className="absolute bottom-[calc(100%+8px)] right-0 z-50 w-72 rounded-2xl border border-sky-200 bg-white p-5 shadow-2xl dark:border-sky-800 dark:bg-slate-800">
                     {/* Triangle pointer */}
                     <div className="absolute bottom-[-8px] right-5 h-0 w-0 border-l-[8px] border-r-[8px] border-t-[8px] border-l-transparent border-r-transparent border-t-sky-200" />
                     <div className="absolute bottom-[-7px] right-5 h-0 w-0 border-l-[8px] border-r-[8px] border-t-[8px] border-l-transparent border-r-transparent border-t-white" />
@@ -199,7 +201,7 @@ export default function Navbar() {
             {/* Logout */}
             <button
               onClick={() => logout()}
-              className="ml-1 rounded-xl px-3 py-2 text-sm font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-800 transition-colors">
+              className="ml-1 rounded-xl px-3 py-2 text-sm font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-800 transition-colors dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100">
               {nav.logout}
             </button>
 

@@ -1,11 +1,13 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState, type DragEvent, type ReactNode } from "react";
-import * as XLSX from "xlsx";
+import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
 import AppShell from "../../components/AppShell";
 import ProtectedRoute from "../../components/ProtectedRoute";
 import Card from "../../components/Card";
+import ButtonPrimary from "../../components/ButtonPrimary";
 import { apiFetch } from "../../lib/api";
+import { useAuth } from "../../hooks/useAuth";
 import { useLanguage } from "../../hooks/useLanguage";
 import { uiText } from "../../lib/i18n";
 const ML_URL = process.env.NEXT_PUBLIC_ML_URL || "http://localhost:5000";
@@ -156,8 +158,9 @@ const REQUIRED_COLS = ["day_num", "day_of_week", "sleep_hours", "activity_mims",
 function parseExcel(file: File): Promise<DayRecord[]> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       try {
+        const XLSX = await import("xlsx");
         const wb = XLSX.read(e.target?.result, { type: "binary" });
         const ws = wb.Sheets[wb.SheetNames[0]];
         const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: 0 });
@@ -187,7 +190,8 @@ function parseExcel(file: File): Promise<DayRecord[]> {
 }
 
 // ── Template download ─────────────────────────────────────────────────────────
-function downloadTemplate() {
+async function downloadTemplate() {
+  const XLSX = await import("xlsx");
   const ws = XLSX.utils.aoa_to_sheet([
     ["day_num", "day_of_week", "sleep_hours", "activity_mims", "wake_minutes"],
     [2, 2, 7.5, 14000, 900],
@@ -203,10 +207,26 @@ function downloadTemplate() {
   XLSX.writeFile(wb, "sleep_activity_template.xlsx");
 }
 
+const MOOD_EMOJIS: Record<string, string> = { "-2": "😞", "-1": "😕", "0": "😐", "1": "🙂", "2": "😄" };
+const MOOD_VALUES = [-2, -1, 0, 1, 2] as const;
+const ACTIVITY_VALUES = [1, 2, 3, 4, 5] as const;
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 export default function SleepActivitiesPage() {
+  const router = useRouter();
+  const { user } = useAuth();
   const { language } = useLanguage();
   const t = uiText[language].sleepPage;
+  const moodT = uiText[language].mood;
+  const canSave = user?.role === "PATIENT";
+  const [showExcelUpload, setShowExcelUpload] = useState(false);
+  const [sleepHours, setSleepHours] = useState("");
+  const [moodLevel, setMoodLevel] = useState<number | null>(null);
+  const [activityLevel, setActivityLevel] = useState<number | null>(null);
+  const [checkInNote, setCheckInNote] = useState("");
+  const [formSaving, setFormSaving] = useState(false);
+  const [formSuccess, setFormSuccess] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
   const [fileName, setFileName] = useState<string | null>(null);
   const [rows, setRows] = useState<DayRecord[]>([]);
@@ -215,6 +235,12 @@ export default function SleepActivitiesPage() {
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [apiError, setApiError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (user?.role === "DOCTOR") {
+      router.replace("/doctor");
+    }
+  }, [user?.role, router]);
 
   const persistDoctorFacingSleepReport = useCallback(async (analysis: AnalysisResult) => {
     const sleepMean = Number(analysis.features?.sleep_mean ?? 0);
@@ -245,6 +271,54 @@ export default function SleepActivitiesPage() {
       })
     });
   }, []);
+
+  const submitDailyCheckIn = async () => {
+    if (!canSave) {
+      setFormError(t.patientOnly);
+      return;
+    }
+    setFormError(null);
+    setFormSuccess(false);
+    const hours = parseFloat(sleepHours.replace(",", "."));
+    if (!Number.isFinite(hours) || hours < 0 || hours > 24) {
+      setFormError(t.invalidSleep);
+      return;
+    }
+    if (moodLevel === null) {
+      setFormError(t.selectMood);
+      return;
+    }
+    if (activityLevel === null) {
+      setFormError(t.selectActivity);
+      return;
+    }
+    setFormSaving(true);
+    try {
+      const noteTrim = checkInNote.trim();
+      const payload = { v: 1 as const, moodLevel, activityLevel, note: noteTrim || undefined };
+      await apiFetch("/activity", {
+        method: "POST",
+        body: JSON.stringify({
+          sleepHours: hours,
+          moodLevel,
+          activityLevel,
+          note: noteTrim || undefined,
+          activityNotes: `[DAILY_CHECKIN]${JSON.stringify(payload)}`
+        })
+      });
+      setFormSuccess(true);
+      setCheckInNote("");
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "";
+      if (msg.includes("Forbidden")) {
+        setFormError(t.patientOnly);
+      } else {
+        setFormError(t.checkInError);
+      }
+    } finally {
+      setFormSaving(false);
+    }
+  };
 
   const handleFile = useCallback(async (file: File) => {
     setParseError(null);
@@ -284,8 +358,9 @@ export default function SleepActivitiesPage() {
       }
       const analysis = (await res.json()) as AnalysisResult;
       setResult(analysis);
-      // Save a compact narrative in activity logs so doctors can read it in patient report.
-      void persistDoctorFacingSleepReport(analysis);
+      void persistDoctorFacingSleepReport(analysis).catch(() => {
+        /* optional doctor log — ignore if session is not a patient account */
+      });
     } catch (e) {
       setApiError((e as Error).message);
     } finally {
@@ -320,7 +395,136 @@ export default function SleepActivitiesPage() {
             </div>
           </div>
 
-          {/* Upload card */}
+          {/* Daily check-in form */}
+          <Card className="space-y-5">
+            <div>
+              <h2 className="text-sm font-semibold text-textPrimary">{t.formTitle}</h2>
+              <p className="mt-1 text-xs text-textSecondary">{t.formSubtitle}</p>
+            </div>
+
+            {!canSave && (
+              <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
+                {t.patientOnly}
+              </p>
+            )}
+
+            <div>
+              <label htmlFor="sleep-hours" className="mb-1.5 block text-xs font-medium text-textPrimary">
+                {t.sleepHoursLabel}
+              </label>
+              <input
+                id="sleep-hours"
+                type="number"
+                min={0}
+                max={24}
+                step={0.5}
+                placeholder={t.sleepHoursHint}
+                value={sleepHours}
+                onChange={(e) => setSleepHours(e.target.value)}
+                disabled={!canSave}
+                className="w-full max-w-xs rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-textPrimary disabled:opacity-60 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100"
+              />
+            </div>
+
+            <div>
+              <p className="mb-2 text-xs font-medium text-textPrimary">{t.moodLabel}</p>
+              <p className="mb-2 text-[10px] text-textSecondary">{moodT.scaleHint}</p>
+              <div className="grid grid-cols-5 gap-2">
+                {MOOD_VALUES.map((value) => {
+                  const key = String(value) as keyof typeof moodT.levels;
+                  return (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => setMoodLevel(value)}
+                      disabled={!canSave}
+                      className={`flex flex-col items-center gap-1 rounded-xl border px-1 py-2 text-[10px] transition disabled:cursor-not-allowed disabled:opacity-60 ${
+                        moodLevel === value
+                          ? "border-primary bg-secondary text-textPrimary dark:bg-primary/20"
+                          : "border-slate-200 text-textPrimary hover:border-primary/40 dark:border-slate-500 dark:bg-slate-700/80"
+                      }`}
+                    >
+                      <span className="emoji text-base" aria-hidden>{MOOD_EMOJIS[String(value)]}</span>
+                      <span className="font-semibold">{value}</span>
+                      <span className="text-center text-textSecondary leading-tight">{moodT.levels[key]}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div>
+              <p className="mb-1 text-xs font-medium text-textPrimary">{t.activityLabel}</p>
+              <p className="mb-2 text-[10px] text-textSecondary">{t.activityHint}</p>
+              <div className="grid grid-cols-5 gap-2">
+                {ACTIVITY_VALUES.map((value) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setActivityLevel(value)}
+                    disabled={!canSave}
+                    className={`rounded-xl border px-1 py-2.5 text-[10px] font-medium transition disabled:cursor-not-allowed disabled:opacity-60 ${
+                      activityLevel === value
+                        ? "border-primary bg-secondary text-textPrimary dark:bg-primary/20"
+                        : "border-slate-200 text-textSecondary hover:border-primary/40 dark:border-slate-500 dark:bg-slate-700/80 dark:text-slate-200"
+                    }`}
+                  >
+                    {t.activityLevels[String(value) as keyof typeof t.activityLevels]}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label htmlFor="checkin-note" className="mb-1.5 block text-xs font-medium text-textPrimary">
+                {t.optionalNote}
+              </label>
+              <textarea
+                id="checkin-note"
+                rows={2}
+                value={checkInNote}
+                onChange={(e) => setCheckInNote(e.target.value)}
+                disabled={!canSave}
+                placeholder={t.optionalNotePh}
+                className="w-full rounded-xl border border-slate-200 bg-white p-3 text-sm text-textPrimary dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100"
+              />
+            </div>
+
+            {formError && (
+              <p className="rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-xs text-red-600 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">
+                {formError}
+              </p>
+            )}
+            {formSuccess && (
+              <p className="rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2 text-xs text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200">
+                {t.checkInSaved}
+              </p>
+            )}
+
+            <ButtonPrimary
+              type="button"
+              onClick={() => void submitDailyCheckIn()}
+              disabled={formSaving || !canSave}
+              className="w-full"
+            >
+              {formSaving ? t.savingCheckIn : t.saveCheckIn}
+            </ButtonPrimary>
+
+            <p className="text-xs leading-relaxed text-textSecondary">{t.awarenessNotice}</p>
+          </Card>
+
+          {/* Optional Excel import */}
+          <div className="flex justify-center">
+            <button
+              type="button"
+              onClick={() => setShowExcelUpload((v) => !v)}
+              className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-medium text-textSecondary transition hover:border-primary/50 hover:text-primary dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300 dark:hover:border-primary/50"
+            >
+              {showExcelUpload ? t.excelToggleHide : t.excelToggleShow}
+            </button>
+          </div>
+
+          {showExcelUpload && (
           <Card className="space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-semibold text-textPrimary">{t.uploadTitle}</h2>
@@ -389,6 +593,7 @@ export default function SleepActivitiesPage() {
               </p>
             )}
           </Card>
+          )}
 
           {/* Preview table */}
           {rows.length > 0 && !result && (

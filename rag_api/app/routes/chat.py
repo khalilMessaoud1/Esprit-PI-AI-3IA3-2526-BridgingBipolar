@@ -110,10 +110,21 @@ def _run_chat_sync(
 
 @router.post("/chat", response_model=ChatResponse)
 async def chat_endpoint(request: Request, body: ChatRequest) -> ChatResponse:
-    if request.app.state.retriever is None:
-        from graphrag.chat_pipeline import build_retriever_from_env
-        request.app.state.retriever = build_retriever_from_env()
-    retriever = request.app.state.retriever
+    try:
+        from app.retriever_loader import get_or_create_retriever
+
+        retriever = get_or_create_retriever(request.app)
+    except Exception as exc:
+        logger.exception("retriever_load_failed")
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "RAG retriever could not connect to Qdrant or Neo4j. "
+                "Start dependencies with: docker compose up -d postgres qdrant "
+                "(and Neo4j on the host if you use graph retrieval). "
+                f"Error: {exc}"
+            ),
+        ) from exc
     session_memory = getattr(request.app.state, "session_memory", None)
     crisis = getattr(request.app.state, "crisis_redis", None)
     keystroke_analyzer = getattr(request.app.state, "keystroke", None)

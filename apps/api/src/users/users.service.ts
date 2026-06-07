@@ -1,9 +1,11 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { UserRole } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 
 @Injectable()
 export class UsersService {
+  private readonly logger = new Logger(UsersService.name);
+
   constructor(private readonly prisma: PrismaService) {}
 
   async createUser(data: {
@@ -121,5 +123,79 @@ export class UsersService {
       language: user.language,
       createdAt: user.createdAt
     };
+  }
+
+  /** RELATIVE accounts linked to this patient (supervisorPhone stores patient UUID). */
+  async findLinkedRelatives(patientId: string) {
+    return this.prisma.user.findMany({
+      where: { role: UserRole.RELATIVE, supervisorPhone: patientId },
+      select: { id: true, name: true, email: true }
+    });
+  }
+
+  /** Notify linked relatives in-app when patient sends a crisis message (once per 24h per patient). */
+  async notifyLinkedRelativesOfCrisis(patientId: string, patientName: string) {
+    try {
+      const relatives = await this.findLinkedRelatives(patientId);
+      if (relatives.length === 0) {
+        return { companionNotified: false, relativeCount: 0 };
+      }
+
+      const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      const recent = await this.prisma.companionCrisisAlert.findFirst({
+        where: { patientId, createdAt: { gte: since } }
+      });
+      if (recent) {
+        return { companionNotified: true, relativeCount: relatives.length };
+      }
+
+      const safeName = (patientName || "Patient").trim().slice(0, 80) || "Patient";
+      await this.prisma.companionCrisisAlert.createMany({
+        data: relatives.map((r) => ({
+          patientId,
+          relativeId: r.id,
+          patientName: safeName
+        }))
+      });
+      return { companionNotified: true, relativeCount: relatives.length };
+    } catch (err) {
+      this.logger.error(
+        `Companion crisis alert failed for patient ${patientId}: ${err instanceof Error ? err.message : String(err)}`
+      );
+      return { companionNotified: false, relativeCount: 0 };
+    }
+  }
+
+  async listCompanionCrisisAlertsForRelative(relativeId: string, limit = 10) {
+    try {
+      return await this.prisma.companionCrisisAlert.findMany({
+        where: { relativeId },
+        orderBy: { createdAt: "desc" },
+        take: limit
+      });
+    } catch (err) {
+      this.logger.warn(
+        `listCompanionCrisisAlertsForRelative failed: ${err instanceof Error ? err.message : String(err)}`
+      );
+      return [];
+    }
+  }
+
+  async markCompanionCrisisAlertsRead(relativeId: string, ids?: string[]) {
+    try {
+      const where =
+        ids && ids.length > 0
+          ? { relativeId, id: { in: ids }, readAt: null }
+          : { relativeId, readAt: null };
+      await this.prisma.companionCrisisAlert.updateMany({
+        where,
+        data: { readAt: new Date() }
+      });
+    } catch (err) {
+      this.logger.warn(
+        `markCompanionCrisisAlertsRead failed: ${err instanceof Error ? err.message : String(err)}`
+      );
+    }
+    return { ok: true };
   }
 }

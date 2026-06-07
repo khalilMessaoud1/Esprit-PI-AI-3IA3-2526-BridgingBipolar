@@ -36,12 +36,27 @@ export default function Questionnaire({ title, questions, onComplete }: Props) {
   const { language } = useLanguage();
   const t = uiText[language];
   const { speak, stop } = useTts(language);
-  const { listening, transcript, start, setTranscript } = useSpeech(language);
+  const { listening, transcript, start, stop: stopListening, setTranscript } = useSpeech(language);
   const [index, setIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, number>>({});
   const [error, setError] = useState("");
   const [isReading, setIsReading] = useState(false);
   const firstRender = useRef(true);
+  const readTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearReadTimer = useCallback(() => {
+    if (readTimerRef.current) {
+      clearTimeout(readTimerRef.current);
+      readTimerRef.current = null;
+    }
+  }, []);
+
+  const haltAudio = useCallback(() => {
+    stop();
+    stopListening();
+    clearReadTimer();
+    setIsReading(false);
+  }, [stop, stopListening, clearReadTimer]);
 
   const scaleName = extractScaleName(title);
   const scaleColor = SCALE_COLORS[scaleName] ?? DEFAULT_COLOR;
@@ -53,19 +68,17 @@ export default function Questionnaire({ title, questions, onComplete }: Props) {
   );
 
   const handleSelect = useCallback((value: number) => {
-    stop();
-    setIsReading(false);
+    haltAudio();
     setAnswers((prev) => ({ ...prev, [question.id]: value }));
     setError("");
-  }, [question?.id, stop]);
+  }, [question?.id, haltAudio]);
 
   const handleNext = () => {
     if (answers[question.id] === undefined) {
       setError(t.common.answerRequired);
       return;
     }
-    stop();
-    setIsReading(false);
+    haltAudio();
     setError("");
     if (index < questions.length - 1) {
       setIndex(index + 1);
@@ -76,13 +89,14 @@ export default function Questionnaire({ title, questions, onComplete }: Props) {
   };
 
   const handleBack = () => {
-    stop();
-    setIsReading(false);
+    haltAudio();
     if (index > 0) setIndex(index - 1);
   };
 
   const handleRead = useCallback(() => {
     if (!question) return;
+    clearReadTimer();
+    stop();
     const text = question.text[language];
     const optionsText = question.options
       .map((opt) => `${opt.value} : ${opt.label[language]}`)
@@ -90,19 +104,26 @@ export default function Questionnaire({ title, questions, onComplete }: Props) {
     setIsReading(true);
     speak(`${text}. ${optionsText}`);
     const ms = Math.max(3000, (`${text}. ${optionsText}`).split(" ").length * 450);
-    setTimeout(() => setIsReading(false), ms);
-  }, [question, language, speak]);
+    readTimerRef.current = setTimeout(() => {
+      readTimerRef.current = null;
+      setIsReading(false);
+    }, ms);
+  }, [question, language, speak, stop, clearReadTimer]);
 
   const handleStop = useCallback(() => {
-    stop();
-    setIsReading(false);
-  }, [stop]);
+    haltAudio();
+  }, [haltAudio]);
 
   // Auto-read after index changes (but not on first mount)
   useEffect(() => {
-    if (firstRender.current) { firstRender.current = false; return; }
+    if (firstRender.current) {
+      firstRender.current = false;
+      return;
+    }
     handleRead();
   }, [index]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => () => haltAudio(), [haltAudio]);
 
   const parseSpokenNumber = useCallback((text: string): number | null => {
     const normalized = text.toLowerCase().trim();

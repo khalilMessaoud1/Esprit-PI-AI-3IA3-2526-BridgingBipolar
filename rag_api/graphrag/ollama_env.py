@@ -39,7 +39,7 @@ def ollama_chat_url() -> str:
 
 
 def default_ollama_chat_model() -> str:
-    return (os.getenv("OLLAMA_CHAT_MODEL") or os.getenv("OLLAMA_MODEL") or "qwen2.5:3b-instruct").strip()
+    return (os.getenv("OLLAMA_CHAT_MODEL") or os.getenv("OLLAMA_MODEL") or "llama3.2:3b").strip()
 
 
 def default_ollama_vision_model() -> str:

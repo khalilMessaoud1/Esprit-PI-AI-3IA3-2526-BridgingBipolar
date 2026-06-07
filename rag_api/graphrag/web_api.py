@@ -161,7 +161,7 @@ def _startup_help_message(exc: BaseException) -> str:
         qdrant_hint = (
             "No QDRANT_URL / https QDRANT_HOST found — client defaults to localhost:6333.\n"
             "For Qdrant Cloud, set e.g. QDRANT_URL=https://....cloud.qdrant.io and QDRANT_API_KEY, "
-            "or set QDRANT_HOST=https://....cloud.qdrant.io:6333 as in your .env.\n"
+            "or set QDRANT_HOST=https://....cloud.qdrant.io as in your .env.\n"
             "Set QDRANT_COLLECTION to match ingestion (default in code: bipolar_chunks).\n"
         )
     return (

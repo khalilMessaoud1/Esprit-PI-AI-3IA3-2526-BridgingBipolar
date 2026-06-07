@@ -13,6 +13,7 @@ export default function Card({ children, className, id }: Props) {
       id={id}
       className={clsx(
         "rounded-2xl border border-slate-200/60 bg-card p-6 shadow-soft",
+        "dark:border-slate-700 dark:bg-card dark:shadow-none",
         className
       )}
     >

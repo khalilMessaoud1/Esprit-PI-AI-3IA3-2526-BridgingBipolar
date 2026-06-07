@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Questionnaire from "../../components/Questionnaire";
 import ProtectedRoute from "../../components/ProtectedRoute";
@@ -8,6 +8,7 @@ import { hdrsQuestions, ymrsQuestions } from "../../lib/assessments";
 import { apiFetch } from "../../lib/api";
 import { useAuth } from "../../hooks/useAuth";
 import { useLanguage } from "../../hooks/useLanguage";
+import { stopAllTts } from "../../hooks/useTts";
 import { uiText } from "../../lib/i18n";
 
 export default function OnboardingPage() {
@@ -18,7 +19,10 @@ export default function OnboardingPage() {
   const [step, setStep] = useState<"YMRS" | "HDRS">("HDRS");
   const [hdrsScore, setHdrsScore] = useState<number | null>(null);
 
+  useEffect(() => () => stopAllTts(), []);
+
   const handleComplete = async (type: "YMRS" | "HDRS", answers: Record<string, number>, score: number) => {
+    stopAllTts();
     await apiFetch("/assessment", {
       method: "POST",
       body: JSON.stringify({ type, answers, score })
@@ -26,6 +30,7 @@ export default function OnboardingPage() {
 
     if (type === "HDRS") {
       setHdrsScore(score);
+      stopAllTts();
       setStep("YMRS");
       return;
     }
@@ -43,6 +48,7 @@ export default function OnboardingPage() {
       localStorage.setItem(`bb_signup_unstable_${user.id}`, unstableAtSignup ? "1" : "0");
     }
 
+    stopAllTts();
     router.push("/dashboard");
   };
 

@@ -60,21 +60,52 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
+
+    const finish = () => {
+      if (!cancelled) setLoading(false);
+    };
+
     try {
+      const token = typeof window !== "undefined" ? localStorage.getItem("bb_token") : null;
       const stored = typeof window !== "undefined" ? localStorage.getItem("bb_user") : null;
       if (stored) {
         try {
           const parsed = JSON.parse(stored) as AuthUser;
           if (!parsed.role) parsed.role = "PATIENT";
-          setUser(parsed);
+          setUserState(parsed);
         } catch {
-          setUser(null);
+          setUserState(null);
         }
       }
-    } finally {
-      setLoading(false);
+
+      if (!token) {
+        finish();
+        return;
+      }
+
+      apiFetch<{ user: AuthUser }>("/user/me")
+        .then(({ user }) => {
+          if (cancelled) return;
+          if (!user.role) user.role = "PATIENT";
+          localStorage.setItem("bb_user", JSON.stringify(user));
+          setUserState(user);
+        })
+        .catch(() => {
+          if (cancelled) return;
+          localStorage.removeItem("bb_token");
+          localStorage.removeItem("bb_user");
+          setUserState(null);
+        })
+        .finally(finish);
+    } catch {
+      finish();
     }
-  }, [setUser]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const login = useCallback(async (email: string, password: string) => {
     const data = await apiFetch<{ token: string; user: AuthUser }>("/auth/login", {

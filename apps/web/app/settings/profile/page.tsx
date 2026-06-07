@@ -112,7 +112,7 @@ export default function SettingsProfilePage() {
         <div className="space-y-3">
           <button
             type="button"
-            className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-left transition hover:border-primary/40"
+            className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-left transition hover:border-primary/40 dark:border-slate-600 dark:bg-slate-800/60 dark:hover:border-primary/50"
             onClick={startEdit}
           >
             <p className="text-xs font-medium text-textSecondary">{t.photo}</p>
@@ -121,10 +121,10 @@ export default function SettingsProfilePage() {
                 <img
                   src={resolveMediaUrl(avatarUrl)}
                   alt=""
-                  className="h-16 w-16 rounded-lg border border-slate-200 object-cover"
+                  className="h-16 w-16 rounded-lg border border-slate-200 object-cover dark:border-slate-600"
                 />
               ) : (
-                <div className="flex h-16 w-16 items-center justify-center rounded-lg border border-dashed border-slate-300 text-xs text-textSecondary">
+                <div className="flex h-16 w-16 items-center justify-center rounded-lg border border-dashed border-slate-300 text-xs text-textSecondary dark:border-slate-500">
                   —
                 </div>
               )}
@@ -135,7 +135,7 @@ export default function SettingsProfilePage() {
           <FieldRow label={t.age} value={age || "—"} onActivate={startEdit} />
           <button
             type="button"
-            className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-left transition hover:border-primary/40"
+            className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-left transition hover:border-primary/40 dark:border-slate-600 dark:bg-slate-800/60 dark:hover:border-primary/50"
             onClick={startEdit}
           >
             <p className="text-xs font-medium text-textSecondary">{t.bio}</p>
@@ -166,7 +166,7 @@ export default function SettingsProfilePage() {
           <label className="flex w-full flex-col gap-2 text-sm text-textSecondary">
             {t.bio}
             <textarea
-              className="min-h-[90px] w-full rounded-xl border border-slate-200 bg-white px-4 py-2 text-textPrimary outline-none focus:border-primary"
+              className="min-h-[90px] w-full rounded-xl border border-slate-200 bg-white px-4 py-2 text-textPrimary outline-none focus:border-primary dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
               value={bio}
               onChange={(event) => setBio(event.target.value)}
             />
@@ -192,16 +192,27 @@ export default function SettingsProfilePage() {
           ? (isFr ? "Partagez ce code avec vos patients lors de leur inscription." : isAr ? "شارك هذا الرمز مع مرضاك عند تسجيلهم." : "Share this code with your patients when they sign up.")
           : (isFr ? "Partagez ce code avec vos proches pour qu'ils puissent vous suivre." : isAr ? "شارك هذا الرمز مع أهلك حتى يتمكنوا من متابعتك." : "Share this code with your relatives so they can follow your status.");
         return (
-          <div className={`rounded-2xl border-2 ${isDoctor ? "border-sky-200 bg-sky-50" : "border-indigo-200 bg-indigo-50"} px-5 py-4`}>
+          <div
+            className={`rounded-2xl border-2 px-5 py-4 ${
+              isDoctor
+                ? "border-sky-200 bg-sky-50 dark:border-sky-800 dark:bg-sky-950/40"
+                : "border-indigo-200 bg-indigo-50 dark:border-indigo-800 dark:bg-indigo-950/40"
+            }`}
+          >
             <div className="flex items-center justify-between gap-3 flex-wrap">
               <div>
-                <p className={`text-xs font-bold uppercase tracking-widest mb-1 ${isDoctor ? "text-sky-500" : "text-indigo-500"}`}>{label}</p>
-                <p className={`font-mono text-2xl font-black tracking-widest ${isDoctor ? "text-sky-700" : "text-indigo-700"}`}>{code}</p>
-                <p className={`text-xs mt-1 ${isDoctor ? "text-sky-500" : "text-indigo-500"}`}>{hint}</p>
+                <p className={`text-xs font-bold uppercase tracking-widest mb-1 ${isDoctor ? "text-sky-500 dark:text-sky-400" : "text-indigo-500 dark:text-indigo-400"}`}>{label}</p>
+                <p className={`font-mono text-2xl font-black tracking-widest ${isDoctor ? "text-sky-700 dark:text-sky-300" : "text-indigo-700 dark:text-indigo-300"}`}>{code}</p>
+                <p className={`text-xs mt-1 ${isDoctor ? "text-sky-500 dark:text-sky-400" : "text-indigo-500 dark:text-indigo-400"}`}>{hint}</p>
               </div>
               <button type="button"
                 onClick={() => navigator.clipboard?.writeText(code)}
-                className={`rounded-xl border bg-white px-3 py-2 text-xs font-semibold transition-colors ${isDoctor ? "border-sky-300 text-sky-700 hover:bg-sky-100" : "border-indigo-300 text-indigo-700 hover:bg-indigo-100"}`}>
+                className={`rounded-xl border bg-white px-3 py-2 text-xs font-semibold transition-colors dark:bg-slate-800 ${
+                  isDoctor
+                    ? "border-sky-300 text-sky-700 hover:bg-sky-100 dark:border-sky-700 dark:text-sky-300 dark:hover:bg-sky-900/50"
+                    : "border-indigo-300 text-indigo-700 hover:bg-indigo-100 dark:border-indigo-700 dark:text-indigo-300 dark:hover:bg-indigo-900/50"
+                }`}
+              >
                 {isFr ? "📋 Copier" : isAr ? "📋 نسخ" : "📋 Copy"}
               </button>
             </div>
@@ -226,7 +237,7 @@ function FieldRow({
   return (
     <button
       type="button"
-      className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-left transition hover:border-primary/40"
+      className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-left transition hover:border-primary/40 dark:border-slate-600 dark:bg-slate-800/60 dark:hover:border-primary/50"
       onClick={onActivate}
     >
       <p className="text-xs font-medium text-textSecondary">{label}</p>

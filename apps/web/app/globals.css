@@ -1,14 +1,103 @@
+@import "./theme.css";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/* ── Design tokens (defaults) ── */
 :root {
   color-scheme: light;
+  --font-manrope: "Manrope", system-ui, sans-serif;
+  --app-font-family: var(--font-manrope);
+  --color-primary: #6b9bd4;
+  --color-secondary: #9bbce8;
+  --color-background: #f4f7fb;
+  --color-card: #ffffff;
+  --color-text-primary: #2e3a59;
+  --color-text-secondary: #64748b;
+  --color-border: rgba(148, 163, 184, 0.45);
+  --color-phase-euthymic: #7ec8b3;
+  --color-phase-depressive: #94a8b8;
+  --color-phase-hypomanic: #e8b87a;
+  --color-phase-manic: #e59866;
+  --color-phase-mixed: #b794f4;
+  --color-phase-undetermined: #94a3b8;
+}
+
+html.dark {
+  color-scheme: dark;
+  --color-primary: #7dd3fc;
+  --color-secondary: #38bdf8;
+  --color-background: #0f172a;
+  --color-card: #1e293b;
+  --color-text-primary: #f1f5f9;
+  --color-text-secondary: #cbd5e1;
+  --color-border: rgba(71, 85, 105, 0.65);
+}
+
+/* ── Font family (must come AFTER :root) ── */
+html[data-font-family="manrope"] {
+  --app-font-family: var(--font-manrope);
+}
+
+html[data-font-family="inter"] {
+  --app-font-family: "Inter", system-ui, sans-serif;
+}
+
+html[data-font-family="open-sans"] {
+  --app-font-family: "Open Sans", system-ui, sans-serif;
+}
+
+html[data-font-family="lato"] {
+  --app-font-family: "Lato", system-ui, sans-serif;
+}
+
+html[data-font-family="merriweather"] {
+  --app-font-family: "Merriweather", Georgia, serif;
+}
+
+html[data-font-family="nunito"] {
+  --app-font-family: "Nunito", system-ui, sans-serif;
+}
+
+/* ── Colorblind palettes (must come AFTER :root / html.dark) ── */
+html[data-colorblind="deuteranopia"] {
+  --color-primary: #0173b2;
+  --color-secondary: #56b4e9;
+  --color-phase-euthymic: #0173b2;
+  --color-phase-depressive: #56b4e9;
+  --color-phase-hypomanic: #ece133;
+  --color-phase-manic: #e27d60;
+  --color-phase-mixed: #cc78bc;
+}
+
+html[data-colorblind="protanopia"] {
+  --color-primary: #0173b2;
+  --color-secondary: #56b4e9;
+  --color-phase-euthymic: #0173b2;
+  --color-phase-depressive: #56b4e9;
+  --color-phase-hypomanic: #ece133;
+  --color-phase-manic: #e27d60;
+  --color-phase-mixed: #cc78bc;
+}
+
+html[data-colorblind="tritanopia"] {
+  --color-primary: #117a65;
+  --color-secondary: #e81bb3;
+  --color-phase-euthymic: #117a65;
+  --color-phase-depressive: #e81bb3;
+  --color-phase-hypomanic: #f0ad4e;
+  --color-phase-manic: #e74c3c;
+  --color-phase-mixed: #9b59b6;
+}
+
+html {
+  font-family: var(--app-font-family);
 }
 
 body {
   @apply bg-background text-textPrimary antialiased;
-  font-family: "Manrope", system-ui, -apple-system, sans-serif;
+  font-family: inherit;
   min-height: 100vh;
   background-image:
     radial-gradient(ellipse 120% 80% at 0% -10%, rgba(224, 242, 254, 0.9) 0%, transparent 55%),
@@ -17,6 +106,45 @@ body {
     linear-gradient(180deg, #f8fafc 0%, #f4f7fb 100%);
 }
 
+html.dark body {
+  background-image:
+    radial-gradient(ellipse 120% 80% at 0% -10%, rgba(15, 23, 42, 0.9) 0%, transparent 55%),
+    radial-gradient(ellipse 90% 60% at 100% 0%, rgba(30, 27, 54, 0.55) 0%, transparent 50%),
+    radial-gradient(ellipse 80% 50% at 50% 100%, rgba(25, 35, 71, 0.35) 0%, transparent 45%),
+    linear-gradient(180deg, #0f172a 0%, #1e1b36 100%);
+}
+
 ::selection {
   background: #cfe8f5;
+}
+
+html.dark ::selection {
+  background: rgba(56, 189, 248, 0.35);
+}
+
+/* Form controls — avoid invisible black boxes in dark mode */
+html.dark input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
+html.dark textarea,
+html.dark select {
+  color-scheme: dark;
+}
+
+@layer components {
+  .field-input {
+    @apply w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900;
+    @apply focus:border-indigo-400 focus:outline-none;
+    @apply dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100 dark:placeholder:text-slate-400;
+    @apply dark:focus:border-indigo-400;
+  }
+}
+
+.emoji {
+  display: inline-block;
+  line-height: 1;
+  vertical-align: middle;
+}
+
+/* Force Tailwind font-sans utilities to follow user font choice */
+.font-sans {
+  font-family: var(--app-font-family) !important;
 }

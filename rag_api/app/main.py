@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 
@@ -20,13 +21,51 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
+def _load_retriever_sync(app: FastAPI) -> None:
+    from app.retriever_loader import get_or_create_retriever
+
+    logger.info("Preloading GraphRAG retriever...")
+    get_or_create_retriever(app)
+    logger.info("GraphRAG retriever ready.")
+
+
+def _warmup_ollama_sync() -> None:
+    """Keep the text model loaded so the first chat turn skips cold-start latency."""
+    import requests
+
+    from graphrag.ollama_env import default_ollama_chat_model, ollama_generate_url
+
+    model = default_ollama_chat_model()
+    url = ollama_generate_url()
+    requests.post(
+        url,
+        json={
+            "model": model,
+            "prompt": "ok",
+            "stream": False,
+            "options": {"num_predict": 1, "num_ctx": 512},
+        },
+        timeout=45,
+    )
+    logger.info("Ollama warmup ping sent for model=%s", model)
+
+
+async def _background_warm(app: FastAPI) -> None:
+    """Load heavy models after the HTTP port is open (Render-friendly)."""
+    try:
+        await asyncio.to_thread(_load_retriever_sync, app)
+    except Exception as exc:
+        logger.warning("Background retriever preload failed (will retry on first /chat): %s", exc)
+        app.state.retriever = None
+        return
+    try:
+        await asyncio.to_thread(_warmup_ollama_sync)
+    except Exception as exc:
+        logger.warning("Ollama warmup failed (first chat may be slower): %s", exc)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """
-    Render needs the app to open a port quickly.
-    So we DO NOT build the RAG retriever here.
-    The retriever will be loaded later, only when the chat endpoint needs it.
-    """
     ensure_graphrag_path()
 
     from graphrag.crisis_redis import CrisisRedisStore
@@ -36,7 +75,6 @@ async def lifespan(app: FastAPI):
     youssef = youssef_root()
     load_dotenv(youssef / ".env")
 
-    # Lazy loading: retriever is not loaded during startup
     app.state.retriever = None
 
     try:
@@ -66,7 +104,8 @@ async def lifespan(app: FastAPI):
     else:
         logger.info("KeystrokeAnalyzer loaded successfully.")
 
-    logger.info("FastAPI startup finished. Retriever will be loaded lazily.")
+    logger.info("FastAPI startup finished. Preloading retriever in background.")
+    asyncio.create_task(_background_warm(app))
 
     yield
 
@@ -77,25 +116,6 @@ async def lifespan(app: FastAPI):
             logger.info("Retriever closed successfully.")
         except Exception as exc:
             logger.warning("Failed to close retriever: %s", exc)
-
-
-def get_or_create_retriever(app: FastAPI):
-    """
-    Lazy loader for GraphRAG retriever.
-    Call this inside routes when you need the retriever.
-    """
-    if getattr(app.state, "retriever", None) is None:
-        ensure_graphrag_path()
-        from graphrag.chat_pipeline import build_retriever_from_env
-
-        youssef = youssef_root()
-        load_dotenv(youssef / ".env")
-
-        logger.info("Loading GraphRAG retriever lazily...")
-        app.state.retriever = build_retriever_from_env()
-        logger.info("GraphRAG retriever loaded successfully.")
-
-    return app.state.retriever
 
 
 def create_app() -> FastAPI:

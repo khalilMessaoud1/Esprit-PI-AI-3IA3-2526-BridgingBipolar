@@ -45,8 +45,7 @@ export default function DoctorLayout({ children }: { children: React.ReactNode }
 
   if (loading || !user || user.role !== "DOCTOR") {
     return (
-      <div className="flex min-h-screen items-center justify-center text-sm text-slate-500"
-        style={{ background: "linear-gradient(135deg,#f0f4ff,#faf5ff)" }}>
+      <div className="flex min-h-screen items-center justify-center text-sm text-slate-500 dark:text-slate-400 bg-gradient-to-br from-indigo-50 via-purple-50 to-emerald-50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
         <div className="flex flex-col items-center gap-3">
           <div className="h-10 w-10 animate-spin rounded-full border-4 border-indigo-200 border-t-indigo-600" />
           {t.loading}
@@ -58,20 +57,20 @@ export default function DoctorLayout({ children }: { children: React.ReactNode }
   const isActive = (href: string) => pathname === href || (href !== "/doctor" && pathname.startsWith(href));
 
   return (
-    <div className="flex min-h-screen" style={{ background: "linear-gradient(135deg,#f0f4ff 0%,#faf5ff 50%,#f0fdf4 100%)" }}>
+    <div className="flex min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-emerald-50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
 
       {/* Sidebar */}
-      <aside className="flex w-64 flex-col border-r border-slate-200/60 bg-white/90 shadow-lg backdrop-blur-sm">
+      <aside className="flex w-64 flex-col border-r border-slate-200/60 bg-white/90 shadow-lg backdrop-blur-sm dark:border-slate-700 dark:bg-slate-900/90">
         {/* Brand */}
-        <div className="border-b border-slate-100 px-5 py-5">
+        <div className="border-b border-slate-100 px-5 py-5 dark:border-slate-700">
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl text-lg shadow-sm"
+            <div className="emoji flex h-9 w-9 items-center justify-center rounded-xl text-lg shadow-sm"
               style={{ background: "linear-gradient(135deg,#6366f1,#8b5cf6)" }}>
               🧠
             </div>
             <div>
-              <div className="text-xs font-semibold uppercase tracking-widest text-slate-400">BridgingBipolar</div>
-              <div className="text-sm font-bold text-slate-900">🩺 {t.workspace}</div>
+              <div className="text-xs font-semibold uppercase tracking-widest text-slate-400 dark:text-slate-500">BridgingBipolar</div>
+              <div className="text-sm font-bold text-slate-900 dark:text-slate-100"><span className="emoji">🩺</span> {t.workspace}</div>
             </div>
           </div>
         </div>
@@ -83,16 +82,16 @@ export default function DoctorLayout({ children }: { children: React.ReactNode }
               className={`flex items-center gap-3 rounded-2xl px-4 py-2.5 text-sm font-medium transition-all ${
                 isActive(href)
                   ? "bg-indigo-600 text-white shadow-sm"
-                  : "text-slate-600 hover:bg-indigo-50 hover:text-indigo-700"
+                  : "text-slate-600 hover:bg-indigo-50 hover:text-indigo-700 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-indigo-200"
               }`}>
-              <span className="text-base">{emoji}</span>
+              <span className="emoji text-base">{emoji}</span>
               <span>{String((t as unknown as Record<string, unknown>)[key] ?? key)}</span>
             </Link>
           ))}
         </nav>
 
         {/* Footer */}
-        <div className="border-t border-slate-100 p-4 space-y-2">
+        <div className="space-y-2 border-t border-slate-100 p-4 dark:border-slate-700">
 
           {/* Clickable doctor name → code popup */}
           {user.name && (
@@ -100,14 +99,14 @@ export default function DoctorLayout({ children }: { children: React.ReactNode }
               <button
                 type="button"
                 onClick={() => setCodePopupOpen(v => !v)}
-                className="flex w-full items-center gap-2.5 rounded-2xl bg-slate-50 hover:bg-sky-50 hover:border-sky-200 border border-transparent px-3 py-2 transition-all text-left"
+                className="flex w-full items-center gap-2.5 rounded-2xl border border-transparent bg-slate-50 px-3 py-2 text-left transition-all hover:border-sky-200 hover:bg-sky-50 dark:bg-slate-800 dark:hover:border-sky-800 dark:hover:bg-slate-700"
               >
                 <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white shadow-sm"
                   style={{ background: "linear-gradient(135deg,#6366f1,#8b5cf6)" }}>
                   {user.name.slice(0, 2).toUpperCase()}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="text-xs font-semibold text-slate-800 truncate">{user.name}</div>
+                  <div className="truncate text-xs font-semibold text-slate-800 dark:text-slate-100">{user.name}</div>
                   <div className="text-[10px] text-sky-500 font-medium">
                     {isFr ? "Voir mon code" : isAr ? "عرض رمزي" : "View my code"} ↑
                   </div>
@@ -118,7 +117,7 @@ export default function DoctorLayout({ children }: { children: React.ReactNode }
               {codePopupOpen && (() => {
                 const code = `BB-${(user.id ?? "").replace(/-/g, "").slice(0, 8).toUpperCase()}`;
                 return (
-                  <div className="absolute bottom-[calc(100%+10px)] left-0 right-0 z-50 rounded-2xl border border-sky-200 bg-white p-5 shadow-2xl">
+                  <div className="absolute bottom-[calc(100%+10px)] left-0 right-0 z-50 rounded-2xl border border-sky-200 bg-white p-5 shadow-2xl dark:border-sky-800 dark:bg-slate-800">
                     {/* Triangle pointer */}
                     <div className="absolute bottom-[-8px] left-6 h-0 w-0 border-l-[8px] border-r-[8px] border-t-[8px] border-l-transparent border-r-transparent border-t-sky-200" />
                     <div className="absolute bottom-[-7px] left-6 h-0 w-0 border-l-[8px] border-r-[8px] border-t-[8px] border-l-transparent border-r-transparent border-t-white" />
@@ -135,7 +134,7 @@ export default function DoctorLayout({ children }: { children: React.ReactNode }
                         onClick={() => navigator.clipboard?.writeText(code)}
                         className="rounded-lg bg-sky-600 px-2.5 py-1.5 text-[10px] font-bold text-white hover:bg-sky-700 transition-colors shrink-0"
                       >
-                        📋 {isFr ? "Copier" : isAr ? "نسخ" : "Copy"}
+                        <span className="emoji">📋</span> {isFr ? "Copier" : isAr ? "نسخ" : "Copy"}
                       </button>
                     </div>
 
@@ -153,8 +152,8 @@ export default function DoctorLayout({ children }: { children: React.ReactNode }
           )}
 
           <button type="button" onClick={() => logout()}
-            className="flex w-full items-center gap-2 rounded-2xl px-3 py-2 text-sm text-slate-500 hover:bg-red-50 hover:text-red-600 transition-colors">
-            🚪 {nav.logout}
+            className="flex w-full items-center gap-2 rounded-2xl px-3 py-2 text-sm text-slate-500 transition-colors hover:bg-red-50 hover:text-red-600 dark:text-slate-400 dark:hover:bg-red-950/40 dark:hover:text-red-400">
+            <span className="emoji">🚪</span> {nav.logout}
           </button>
         </div>
       </aside>

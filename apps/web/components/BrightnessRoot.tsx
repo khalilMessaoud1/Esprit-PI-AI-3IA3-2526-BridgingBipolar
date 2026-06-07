@@ -5,29 +5,33 @@ import { ReactNode, useEffect, useState } from "react";
 const STORAGE_KEY = "bb_brightness";
 
 function readBrightness(): number {
-  if (typeof window === "undefined") return 90;
+  if (typeof window === "undefined") return 100;
   const raw = localStorage.getItem(STORAGE_KEY);
-  const n = raw ? Number(raw) : 90;
-  if (Number.isNaN(n)) return 90;
+  const n = raw ? Number(raw) : 100;
+  if (Number.isNaN(n)) return 100;
   return Math.min(100, Math.max(60, n));
 }
 
 /**
- * Brightness is applied on this wrapper only (not on `html`) so global layout, fonts,
- * and interactions stay reliable on auth pages and elsewhere.
+ * Brightness filter on a wrapper (not html/body) so layout and fonts stay stable.
  */
 export default function BrightnessRoot({ children }: { children: ReactNode }) {
-  const [value, setValue] = useState(90);
-
-  useEffect(() => {
-    document.documentElement.style.filter = "";
-  }, []);
+  const [value, setValue] = useState(100);
 
   useEffect(() => {
     setValue(readBrightness());
-    const onCustom = (e: Event) => {
+
+    const onTheme = (e: Event) => {
+      const ce = e as CustomEvent<{ brightness?: number }>;
+      if (typeof ce.detail?.brightness === "number") {
+        setValue(Math.min(100, Math.max(60, ce.detail.brightness)));
+      }
+    };
+    const onBrightness = (e: Event) => {
       const ce = e as CustomEvent<number>;
-      if (typeof ce.detail === "number") setValue(ce.detail);
+      if (typeof ce.detail === "number") {
+        setValue(Math.min(100, Math.max(60, ce.detail)));
+      }
     };
     const onStorage = (e: StorageEvent) => {
       if (e.key === STORAGE_KEY && e.newValue) {
@@ -35,10 +39,13 @@ export default function BrightnessRoot({ children }: { children: ReactNode }) {
         if (!Number.isNaN(n)) setValue(Math.min(100, Math.max(60, n)));
       }
     };
-    window.addEventListener("bb-brightness", onCustom as EventListener);
+
+    window.addEventListener("bb-theme-changed", onTheme as EventListener);
+    window.addEventListener("bb-brightness", onBrightness as EventListener);
     window.addEventListener("storage", onStorage);
     return () => {
-      window.removeEventListener("bb-brightness", onCustom as EventListener);
+      window.removeEventListener("bb-theme-changed", onTheme as EventListener);
+      window.removeEventListener("bb-brightness", onBrightness as EventListener);
       window.removeEventListener("storage", onStorage);
     };
   }, []);

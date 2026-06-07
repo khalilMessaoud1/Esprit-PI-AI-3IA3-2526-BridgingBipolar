@@ -3,24 +3,15 @@
 import { ReactNode } from "react";
 import clsx from "clsx";
 import Navbar from "./Navbar";
-import ChatbotWidget from "./ChatbotWidget";
-import { useAuth } from "../hooks/useAuth";
-import { useLanguage } from "../hooks/useLanguage";
-import { useMedicationReminders } from "../hooks/useMedicationReminders";
 
 type Props = {
   children: ReactNode;
-  showChatbot?: boolean;
   /** Full viewport under navbar — for immersive Companion (3D avatar + floating chat). */
   layout?: "default" | "companion";
 };
 
-export default function AppShell({ children, showChatbot = false, layout = "default" }: Props) {
+export default function AppShell({ children, layout = "default" }: Props) {
   const companion = layout === "companion";
-  const { user } = useAuth();
-  const { language } = useLanguage();
-  // Smart medication reminders — fires browser notifications at scheduled times
-  useMedicationReminders(user?.role === "PATIENT" ? language : "");
 
   return (
     <div
@@ -42,7 +33,6 @@ export default function AppShell({ children, showChatbot = false, layout = "defa
       >
         {children}
       </main>
-      {showChatbot && <ChatbotWidget />}
     </div>
   );
 }

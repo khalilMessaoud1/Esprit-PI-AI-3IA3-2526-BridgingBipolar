@@ -8,10 +8,17 @@ import {
 import { ConfigService } from "@nestjs/config";
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
+import { UsersService } from "../users/users.service";
 import { ChatRequestDto } from "./dto/chat.dto";
 
 const HISTORY_LIMIT = 20;
-const CRISIS_ALERT_THRESHOLD = 3;
+const RAG_HISTORY_LIMIT = 8;
+const RAG_FAST_RETRIEVAL = {
+  top_k: 6,
+  graph_hops: 0,
+  rerank_top_n: 4
+} as const;
+const CRISIS_ALERT_THRESHOLD = 1;
 const crisisHitCount: Map<string, number> = new Map();
 
 /** Offline safeguard when RAG does not set crisis_support_notified (Redis/crisis pipeline off). */
@@ -38,14 +45,98 @@ export class ChatService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly config: ConfigService
+    private readonly config: ConfigService,
+    private readonly usersService: UsersService
   ) {}
+
+  /** True when user text or RAG payload indicates suicidal / self-harm crisis. */
+  isCrisisTurn(text: string, ragPayload?: Record<string, unknown>): boolean {
+    if (this.detectSelfHarmInText(text)) return true;
+    if (!ragPayload) return false;
+    if (Boolean(ragPayload.escalated)) return true;
+    if (Boolean(ragPayload.crisis_self_harm_turn)) return true;
+    const risk = ragPayload.risk;
+    if (risk && typeof risk === "object" && Boolean((risk as Record<string, unknown>).crisis_self_harm)) {
+      return true;
+    }
+    return false;
+  }
+
+  /** Tell the patient their companion / emergency contact was notified. */
+  private appendCompanionNotifiedNotice(
+    reply: string,
+    lang: string | null | undefined,
+    opts: { companionApp: boolean; emergencyContact: boolean }
+  ): string {
+    if (!opts.companionApp && !opts.emergencyContact) return reply;
+    const code = String(lang || "en")
+      .slice(0, 2)
+      .toLowerCase();
+    let notice = "";
+    if (code === "fr") {
+      if (opts.companionApp && opts.emergencyContact) {
+        notice =
+          "\n\nℹ️ Votre proche (compagnon) a été notifié dans l'application et votre contact d'urgence par message. Ils ont été invités à vous contacter rapidement.";
+      } else if (opts.companionApp) {
+        notice =
+          "\n\nℹ️ Votre proche (compagnon) a été notifié dans l'application et invité à vous contacter rapidement.";
+      } else {
+        notice =
+          "\n\nℹ️ Votre contact d'urgence enregistré a été notifié et invité à vous contacter rapidement.";
+      }
+    } else if (code === "ar") {
+      notice = opts.companionApp
+        ? "\n\nℹ️ تم إخطار قريبك (المرافق) عبر التطبيق وطُلب منه التواصل معك فوراً."
+        : "\n\nℹ️ تم إخطار جهة الاتصال الطارئة المسجلة وطُلب منها التواصل معك فوراً.";
+    } else if (opts.companionApp && opts.emergencyContact) {
+      notice =
+        "\n\nℹ️ Your linked companion was notified in the app and your emergency contact was messaged. They were asked to reach out to you soon.";
+    } else if (opts.companionApp) {
+      notice =
+        "\n\nℹ️ Your linked companion was notified in the app and asked to contact you right away.";
+    } else {
+      notice =
+        "\n\nℹ️ Your registered emergency contact was notified and asked to reach you right away.";
+    }
+    return reply + notice;
+  }
 
   /** True when user text strongly suggests imminent self-harm / suicide (English + French). */
   detectSelfHarmInText(text: string): boolean {
     const t = String(text || "").trim();
     if (t.length < 6) return false;
     return CRISIS_TEXT_PATTERNS.some((re) => re.test(t));
+  }
+
+  /** Safety reply when crisis language is detected — overrides generic LLM output. */
+  private crisisCompanionReply(lang?: string | null): string {
+    const code = String(lang || "en")
+      .slice(0, 2)
+      .toLowerCase();
+    if (code === "fr") {
+      return (
+        "Merci de me l'avoir dit — ce que tu ressens compte vraiment, et tu n'es pas obligé(e) " +
+        "d'affronter ça seul(e). Si tu es en danger immédiat, appelle le 15 (SAMU) ou le 3114 " +
+        "(numéro national de prévention du suicide, 24h/24). Préviens quelqu'un de confiance ou " +
+        "ton équipe soignante dès que tu peux. Es-tu en sécurité en ce moment ?"
+      );
+    }
+    if (code === "ar") {
+      return (
+        "شكراً لثقتك — ما تشعر به مهم، ولست وحدك. إذا كنت في خطر الآن، اتصل بخدمات الطوارئ " +
+        "أو خط مساعدة محلي فوراً. حاول التواصل مع شخص تثق به أو فريق رعايتك. هل أنت بأمان في هذه اللحظة؟"
+      );
+    }
+    return (
+      "Thank you for telling me — what you're feeling matters, and you don't have to face this alone. " +
+      "If you're in immediate danger, please contact emergency services or a crisis line now " +
+      "(US: call or text 988). Reach someone you trust or your care team as soon as you can. " +
+      "Are you safe right now?"
+    );
+  }
+
+  private applyCrisisReplyIfNeeded(reply: string, textCrisis: boolean, lang?: string | null): string {
+    return textCrisis ? this.crisisCompanionReply(lang) : reply;
   }
 
   /**
@@ -79,7 +170,7 @@ export class ChatService {
     };
   }
 
-  /** After RAG returns: if parent WhatsApp was already sent, skip Nest Twilio (avoid duplicate). */
+  /** After RAG returns: notify linked companions + emergency contact on first crisis message. */
   private async finalizeCrisisOutbound(
     userId: string,
     patientName: string,
@@ -87,23 +178,37 @@ export class ChatService {
     textCrisis: boolean
   ): Promise<{
     crisis_support_notified: boolean;
+    companion_app_notified: boolean;
     twilio_alert_sent: boolean;
     crisis_strikes?: number;
     crisis_self_harm_turn: boolean;
   }> {
+    if (!textCrisis) {
+      return {
+        crisis_support_notified: false,
+        companion_app_notified: false,
+        twilio_alert_sent: false,
+        crisis_self_harm_turn: false
+      };
+    }
+
+    const companionNotify = await this.usersService.notifyLinkedRelativesOfCrisis(userId, patientName);
     const ragNotifiedParent = Boolean(ragPayload.crisis_support_notified);
     const strikesRaw = ragPayload.crisis_strikes;
     const crisisStrikes =
       typeof strikesRaw === "number" && Number.isFinite(strikesRaw) ? Math.round(strikesRaw) : undefined;
     let twilioAlertSent = false;
-    if (!ragNotifiedParent && textCrisis) {
+    if (!ragNotifiedParent) {
       twilioAlertSent = await this.handleCrisisEscalation(userId, patientName, true);
     }
+    const companionAppNotified = companionNotify.companionNotified;
+    const emergencyNotified = ragNotifiedParent || twilioAlertSent;
     return {
-      crisis_support_notified: ragNotifiedParent || twilioAlertSent,
+      crisis_support_notified: companionAppNotified || emergencyNotified,
+      companion_app_notified: companionAppNotified,
       twilio_alert_sent: twilioAlertSent,
       crisis_strikes: crisisStrikes,
-      crisis_self_harm_turn: textCrisis
+      crisis_self_harm_turn: true
     };
   }
 
@@ -188,7 +293,7 @@ export class ChatService {
     const appBase = this.config.get<string>("APP_WEB_URL") || "http://localhost:3001";
     const body = [
       "BridgingBipolar crisis alert.",
-      `${patientName} has triggered 3 suicide/self-harm crisis detections in chat.`,
+      `${patientName} may be expressing suicidal thoughts in the companion chat.`,
       "Please contact them immediately and seek emergency services if needed.",
       `App: ${appBase}`
     ].join(" ");
@@ -229,8 +334,8 @@ export class ChatService {
       select: { supervisorPhone: true }
     });
     const phone = user?.supervisorPhone?.trim();
-    if (!phone) {
-      this.logger.warn(`Crisis threshold reached but user ${userId} has no supervisorPhone — no SMS sent.`);
+    if (!phone || phone.length >= 30) {
+      this.logger.warn(`Crisis threshold reached but user ${userId} has no valid supervisorPhone — no SMS sent.`);
       return false;
     }
     try {
@@ -325,6 +430,10 @@ export class ChatService {
     return out;
   }
 
+  private historyForRag(history: { role: "user" | "assistant"; content: string }[]) {
+    return history.slice(-RAG_HISTORY_LIMIT);
+  }
+
   async chatText(userId: string, dto: ChatRequestDto) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
@@ -359,22 +468,44 @@ export class ChatService {
       session_id: sessionId,
       user_id: userId,
       message: dto.message.trim(),
-      conversation_history: history,
+      conversation_history: this.historyForRag(history),
       user_profile: { name: user.name },
       keystroke_events: dto.keystroke_events,
       keystroke_session: dto.keystroke_session,
-      crisis_parent: crisisParentForRag
+      crisis_parent: crisisParentForRag,
+      ...RAG_FAST_RETRIEVAL
     };
 
     const data = (await this.postJson("/chat", ragBody)) as Record<string, unknown>;
-    const answer = String(data.answer ?? "");
-    const textCrisis = this.detectSelfHarmInText(dto.message.trim());
+    const textCrisis = this.isCrisisTurn(dto.message.trim(), data);
+    const replyLang = data.lang != null ? String(data.lang) : undefined;
+    let answer = this.applyCrisisReplyIfNeeded(String(data.answer ?? ""), textCrisis, replyLang);
     const crisisOut = await this.finalizeCrisisOutbound(userId, user.name, data, textCrisis);
+    if (textCrisis && crisisOut.crisis_support_notified) {
+      answer = this.appendCompanionNotifiedNotice(answer, replyLang, {
+        companionApp: crisisOut.companion_app_notified,
+        emergencyContact: Boolean(data.crisis_support_notified) || crisisOut.twilio_alert_sent
+      });
+    }
 
     await this.prisma.companionMessage.createMany({
       data: [
         { threadId: threadId!, role: "user", content: dto.message.trim(), metadata: undefined },
-        { threadId: threadId!, role: "assistant", content: answer, metadata: undefined }
+        {
+          threadId: threadId!,
+          role: "assistant",
+          content: answer,
+          metadata: textCrisis
+            ? ({
+                crisis: {
+                  selfHarmTurn: true,
+                  notified: crisisOut.crisis_support_notified,
+                  companionAppNotified: crisisOut.companion_app_notified,
+                  smsSent: crisisOut.twilio_alert_sent
+                }
+              } as Prisma.InputJsonValue)
+            : undefined
+        }
       ]
     });
 
@@ -383,6 +514,7 @@ export class ChatService {
       threadId,
       lang: data.lang != null ? String(data.lang) : undefined,
       crisis_support_notified: crisisOut.crisis_support_notified,
+      companion_app_notified: crisisOut.companion_app_notified,
       twilio_alert_sent: crisisOut.twilio_alert_sent,
       crisis_strikes: crisisOut.crisis_strikes,
       crisis_self_harm_turn: crisisOut.crisis_self_harm_turn,
@@ -423,7 +555,7 @@ export class ChatService {
     form.append("patient_id", userId);
     form.append("session_id", sessionId);
     form.append("user_id", userId);
-    form.append("conversation_history_json", JSON.stringify(history));
+    form.append("conversation_history_json", JSON.stringify(this.historyForRag(history)));
     form.append("user_profile_json", JSON.stringify({ name: user.name }));
     const crisisParentForRag = this.resolveCrisisParentForRag(undefined, user);
     form.append(
@@ -433,9 +565,16 @@ export class ChatService {
 
     const data = (await this.postMultipart("/voice", form)) as Record<string, unknown>;
     const transcript = String(data.transcript ?? "");
-    const answer = String(data.answer ?? "");
-    const textCrisis = this.detectSelfHarmInText(transcript);
+    const textCrisis = this.isCrisisTurn(transcript, data);
+    const replyLang = data.lang != null ? String(data.lang) : undefined;
+    let answer = this.applyCrisisReplyIfNeeded(String(data.answer ?? ""), textCrisis, replyLang);
     const crisisOut = await this.finalizeCrisisOutbound(userId, user.name, data, textCrisis);
+    if (textCrisis && crisisOut.crisis_support_notified) {
+      answer = this.appendCompanionNotifiedNotice(answer, replyLang, {
+        companionApp: crisisOut.companion_app_notified,
+        emergencyContact: Boolean(data.crisis_support_notified) || crisisOut.twilio_alert_sent
+      });
+    }
 
     const voiceMood = data.voice_mood;
     const xai = data.xai;
@@ -481,6 +620,7 @@ export class ChatService {
       voice_mood: data.voice_mood,
       xai: data.xai,
       crisis_support_notified: crisisOut.crisis_support_notified,
+      companion_app_notified: crisisOut.companion_app_notified,
       twilio_alert_sent: crisisOut.twilio_alert_sent,
       crisis_strikes: crisisOut.crisis_strikes,
       crisis_self_harm_turn: crisisOut.crisis_self_harm_turn,
@@ -522,7 +662,7 @@ export class ChatService {
     form.append("session_id", sessionId);
     form.append("user_id", userId);
     if (message) form.append("message", message);
-    form.append("conversation_history_json", JSON.stringify(history));
+    form.append("conversation_history_json", JSON.stringify(this.historyForRag(history)));
     form.append("user_profile_json", JSON.stringify({ name: user.name }));
     const crisisParentForRag = this.resolveCrisisParentForRag(undefined, user);
     form.append(
@@ -532,9 +672,16 @@ export class ChatService {
 
     const data = (await this.postMultipart("/chat/image", form)) as Record<string, unknown>;
     const transcript = String(data.transcript ?? "");
-    const answer = String(data.answer ?? "");
-    const textCrisis = this.detectSelfHarmInText(transcript + " " + (message || ""));
+    const textCrisis = this.isCrisisTurn(`${message || ""} ${transcript}`.trim(), data);
+    const replyLang = data.lang != null ? String(data.lang) : undefined;
+    let answer = this.applyCrisisReplyIfNeeded(String(data.answer ?? ""), textCrisis, replyLang);
     const crisisOut = await this.finalizeCrisisOutbound(userId, user.name, data, textCrisis);
+    if (textCrisis && crisisOut.crisis_support_notified) {
+      answer = this.appendCompanionNotifiedNotice(answer, replyLang, {
+        companionApp: crisisOut.companion_app_notified,
+        emergencyContact: Boolean(data.crisis_support_notified) || crisisOut.twilio_alert_sent
+      });
+    }
     const imageCaption = data.image_caption != null ? String(data.image_caption) : undefined;
 
     await this.prisma.companionMessage.createMany({
@@ -555,6 +702,7 @@ export class ChatService {
       threadId,
       image_caption: imageCaption,
       crisis_support_notified: crisisOut.crisis_support_notified,
+      companion_app_notified: crisisOut.companion_app_notified,
       twilio_alert_sent: crisisOut.twilio_alert_sent,
       crisis_strikes: crisisOut.crisis_strikes,
       crisis_self_harm_turn: crisisOut.crisis_self_harm_turn,

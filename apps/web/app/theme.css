@@ -1,0 +1,191 @@
+/* Colorblind Mode - phase class helpers (CSS vars live in globals.css) */
+
+[data-colorblind="deuteranopia"] .phase-euthymic,
+[data-colorblind="deuteranopia"] [class*="stable"] {
+  color: var(--color-phase-euthymic);
+  background-color: color-mix(in srgb, var(--color-phase-euthymic) 12%, transparent);
+}
+
+[data-colorblind="deuteranopia"] .phase-depressive,
+[data-colorblind="deuteranopia"] [class*="depression"] {
+  color: var(--color-phase-depressive);
+  background-color: color-mix(in srgb, var(--color-phase-depressive) 12%, transparent);
+}
+
+[data-colorblind="deuteranopia"] .phase-hypomanic,
+[data-colorblind="deuteranopia"] [class*="hypomanic"] {
+  color: var(--color-phase-hypomanic);
+  background-color: color-mix(in srgb, var(--color-phase-hypomanic) 12%, transparent);
+}
+
+[data-colorblind="deuteranopia"] .phase-manic,
+[data-colorblind="deuteranopia"] [class*="manic"] {
+  color: var(--color-phase-manic);
+  background-color: color-mix(in srgb, var(--color-phase-manic) 12%, transparent);
+}
+
+[data-colorblind="deuteranopia"] .phase-mixed {
+  color: var(--color-phase-mixed);
+  background-color: color-mix(in srgb, var(--color-phase-mixed) 12%, transparent);
+}
+
+[data-colorblind="protanopia"] .phase-euthymic,
+[data-colorblind="protanopia"] [class*="stable"] {
+  color: var(--color-phase-euthymic);
+  background-color: color-mix(in srgb, var(--color-phase-euthymic) 12%, transparent);
+}
+
+[data-colorblind="protanopia"] .phase-depressive,
+[data-colorblind="protanopia"] [class*="depression"] {
+  color: var(--color-phase-depressive);
+  background-color: color-mix(in srgb, var(--color-phase-depressive) 12%, transparent);
+}
+
+[data-colorblind="protanopia"] .phase-hypomanic,
+[data-colorblind="protanopia"] [class*="hypomanic"] {
+  color: var(--color-phase-hypomanic);
+  background-color: color-mix(in srgb, var(--color-phase-hypomanic) 12%, transparent);
+}
+
+[data-colorblind="protanopia"] .phase-manic,
+[data-colorblind="protanopia"] [class*="manic"] {
+  color: var(--color-phase-manic);
+  background-color: color-mix(in srgb, var(--color-phase-manic) 12%, transparent);
+}
+
+[data-colorblind="protanopia"] .phase-mixed {
+  color: var(--color-phase-mixed);
+  background-color: color-mix(in srgb, var(--color-phase-mixed) 12%, transparent);
+}
+
+[data-colorblind="tritanopia"] .phase-euthymic,
+[data-colorblind="tritanopia"] [class*="stable"] {
+  color: var(--color-phase-euthymic);
+  background-color: color-mix(in srgb, var(--color-phase-euthymic) 12%, transparent);
+}
+
+[data-colorblind="tritanopia"] .phase-depressive,
+[data-colorblind="tritanopia"] [class*="depression"] {
+  color: var(--color-phase-depressive);
+  background-color: color-mix(in srgb, var(--color-phase-depressive) 12%, transparent);
+}
+
+[data-colorblind="tritanopia"] .phase-hypomanic,
+[data-colorblind="tritanopia"] [class*="hypomanic"] {
+  color: var(--color-phase-hypomanic);
+  background-color: color-mix(in srgb, var(--color-phase-hypomanic) 12%, transparent);
+}
+
+[data-colorblind="tritanopia"] .phase-manic,
+[data-colorblind="tritanopia"] [class*="manic"] {
+  color: var(--color-phase-manic);
+  background-color: color-mix(in srgb, var(--color-phase-manic) 12%, transparent);
+}
+
+[data-colorblind="tritanopia"] .phase-mixed {
+  color: var(--color-phase-mixed);
+  background-color: color-mix(in srgb, var(--color-phase-mixed) 12%, transparent);
+}
+
+/* Dark mode hook for Tailwind dark: */
+html.dark,
+html[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+/* Font family presets moved to globals.css (after :root) */
+
+/* Font Size Adjustments — bumped for readability */
+[data-font-size="small"] {
+  font-size: 15px;
+}
+
+[data-font-size="small"] h1 {
+  font-size: 1.8rem;
+}
+
+[data-font-size="small"] h2 {
+  font-size: 1.5rem;
+}
+
+[data-font-size="small"] h3 {
+  font-size: 1.2rem;
+}
+
+[data-font-size="normal"] {
+  font-size: 18px;
+}
+
+[data-font-size="normal"] h1 {
+  font-size: 2rem;
+}
+
+[data-font-size="normal"] h2 {
+  font-size: 1.6rem;
+}
+
+[data-font-size="normal"] h3 {
+  font-size: 1.3rem;
+}
+
+[data-font-size="large"] {
+  font-size: 20px;
+}
+
+[data-font-size="large"] h1 {
+  font-size: 2.2rem;
+}
+
+[data-font-size="large"] h2 {
+  font-size: 1.8rem;
+}
+
+[data-font-size="large"] h3 {
+  font-size: 1.5rem;
+}
+
+[data-font-size="extra-large"] {
+  font-size: 22px;
+}
+
+[data-font-size="extra-large"] h1 {
+  font-size: 2.5rem;
+}
+
+[data-font-size="extra-large"] h2 {
+  font-size: 2rem;
+}
+
+[data-font-size="extra-large"] h3 {
+  font-size: 1.7rem;
+}
+
+/* Emoji sizing — larger than body text */
+[data-font-size="small"] .emoji {
+  font-size: 1.3em;
+}
+
+[data-font-size="normal"] .emoji {
+  font-size: 1.5em;
+}
+
+[data-font-size="large"] .emoji {
+  font-size: 1.7em;
+}
+
+[data-font-size="extra-large"] .emoji {
+  font-size: 1.9em;
+}
+
+/* Shared dark-mode surfaces for pages using hardcoded slate/white classes */
+html.dark .surface-card {
+  @apply border-slate-700 bg-slate-800 text-slate-100;
+}
+
+html.dark .surface-muted {
+  @apply bg-slate-800/80 text-slate-300;
+}
+
+html.dark .surface-input {
+  @apply border-slate-600 bg-slate-900 text-slate-100;
+}

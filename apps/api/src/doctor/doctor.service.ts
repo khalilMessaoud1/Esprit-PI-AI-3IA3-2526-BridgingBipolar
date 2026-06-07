@@ -1,16 +1,59 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { UserRole } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
+import { MedicationsService } from "../medications/medications.service";
+import { buildWeeklyVisualReport } from "./weekly-report.util";
+import { buildClinicalDecision, clinicalPhaseToWeeklyTheme } from "./clinical-decision.util";
 
 @Injectable()
 export class DoctorService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly medicationsService: MedicationsService
+  ) {}
 
   patientStatus(latestMood: number | null): "stable" | "manic" | "critical" {
     if (latestMood === null) return "stable";
     if (latestMood >= 2 || latestMood <= -2) return "critical";
     if (latestMood >= 1 || latestMood <= -1) return "manic";
     return "stable";
+  }
+
+  /** Doctor must be linked via signup code or at least one appointment. */
+  private async assertDoctorPatientAccess(doctorId: string, patientId: string) {
+    const linked = await this.prisma.user.findFirst({
+      where: { id: patientId, role: UserRole.PATIENT, linkedDoctorId: doctorId },
+      select: { id: true }
+    });
+    if (linked) return;
+
+    const appt = await this.prisma.appointment.findFirst({
+      where: { doctorId, patientId },
+      select: { id: true }
+    });
+    if (!appt) throw new NotFoundException("Patient not found");
+  }
+
+  /** Ask patient to redo onboarding questionnaires (HDRS + YMRS) on next login. */
+  async requestPatientQuestionnaire(doctorId: string, patientId: string) {
+    await this.assertDoctorPatientAccess(doctorId, patientId);
+
+    const patient = await this.prisma.user.findFirst({
+      where: { id: patientId, role: UserRole.PATIENT },
+      select: { id: true, firstLogin: true }
+    });
+    if (!patient) throw new NotFoundException("Patient not found");
+
+    if (patient.firstLogin) {
+      return { ok: true, firstLogin: true, alreadyPending: true };
+    }
+
+    await this.prisma.user.update({
+      where: { id: patientId },
+      data: { firstLogin: true }
+    });
+
+    return { ok: true, firstLogin: true, alreadyPending: false };
   }
 
   async listPatients(doctorId: string) {
@@ -41,6 +84,7 @@ export class DoctorService {
         email: true,
         avatarUrl: true,
         age: true,
+        firstLogin: true,
         moodEntries: { orderBy: { createdAt: "desc" }, take: 1, select: { moodLevel: true } }
       }
     });
@@ -51,7 +95,8 @@ export class DoctorService {
         email: u.email,
         avatarUrl: u.avatarUrl,
         age: u.age,
-        status: this.patientStatus(u.moodEntries[0]?.moodLevel ?? null)
+        status: this.patientStatus(u.moodEntries[0]?.moodLevel ?? null),
+        questionnairePending: u.firstLogin
       }))
     };
   }
@@ -281,7 +326,45 @@ export class DoctorService {
       })
       .filter((x): x is NonNullable<typeof x> => x !== null);
 
-    return { patient, notes, appointments, reports: { voiceXaiReport, sleepActivityReport, voiceHistory, sleepHistory, handwritingHistory } };
+    const medicationAdherence = await this.medicationsService.getAdherenceSummary(patientId, 7);
+
+    const latestVoice = voiceHistory[0];
+    const latestSleep = sleepHistory[0];
+    const latestHW = handwritingHistory[0];
+    const latestMouse = patient.mouseBehaviorLogs[0];
+    const latestMoodEntry = patient.moodEntries[0];
+    const latestYmrsAss = patient.assessments.find((a) => a.type === "YMRS");
+    const latestHdrsAss = patient.assessments.find((a) => a.type === "HDRS");
+
+    const clinicalDecision = buildClinicalDecision({
+      latestVoice,
+      latestSleep,
+      latestYmrs: latestYmrsAss ?? null,
+      latestHdrs: latestHdrsAss ?? null,
+      latestHandwriting: latestHW,
+      latestMouse,
+      latestMood: latestMoodEntry ?? null
+    });
+
+    const weeklyReport = buildWeeklyVisualReport({
+      patient,
+      voiceHistory,
+      sleepHistory,
+      medicationAdherence,
+      voiceXaiReport,
+      sleepActivityReport,
+      themeOverride: clinicalPhaseToWeeklyTheme(clinicalDecision.decision)
+    });
+
+    return {
+      patient,
+      notes,
+      appointments,
+      reports: { voiceXaiReport, sleepActivityReport, voiceHistory, sleepHistory, handwritingHistory },
+      medicationAdherence,
+      clinicalDecision,
+      weeklyReport
+    };
   }
 
   async addNote(doctorId: string, patientId: string, body: string) {

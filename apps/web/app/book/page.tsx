@@ -239,7 +239,7 @@ export default function BookVisitPage() {
           {/* ── Done ─────────────────────────────────────────────── */}
           {step === "done" && (
             <div className="rounded-3xl border border-teal-200 bg-teal-50 p-8 text-center space-y-4 shadow-sm">
-              <div className="text-5xl">🎉</div>
+              <div className="emoji text-5xl">🎉</div>
               <h2 className="text-xl font-bold text-teal-900">{t.requestSent}</h2>
               <p className="text-sm text-teal-700">{isFr ? "Votre médecin confirmera le rendez-vous sous peu." : "Your doctor will confirm the appointment shortly."}</p>
               <div className="flex flex-wrap justify-center gap-3">

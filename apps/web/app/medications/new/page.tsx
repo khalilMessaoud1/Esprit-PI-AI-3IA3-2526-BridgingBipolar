@@ -60,6 +60,38 @@ function resizeTimes(times: string[], count: number): string[] {
   return [...times, ...extra];
 }
 
+/** Resize/compress prescription photo before upload — faster OCR on server. */
+async function compressPrescriptionImage(file: File, maxSide = 1600): Promise<File> {
+  if (!file.type.startsWith("image/")) return file;
+  try {
+    const bitmap = await createImageBitmap(file);
+    const longest = Math.max(bitmap.width, bitmap.height);
+    if (longest <= maxSide && file.size < 900_000 && file.type === "image/jpeg") {
+      bitmap.close();
+      return file;
+    }
+    const scale = Math.min(1, maxSide / longest);
+    const w = Math.max(1, Math.round(bitmap.width * scale));
+    const h = Math.max(1, Math.round(bitmap.height * scale));
+    const canvas = document.createElement("canvas");
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) {
+      bitmap.close();
+      return file;
+    }
+    ctx.drawImage(bitmap, 0, 0, w, h);
+    bitmap.close();
+    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.85));
+    if (!blob) return file;
+    const base = file.name.replace(/\.[^.]+$/, "") || "prescription";
+    return new File([blob], `${base}.jpg`, { type: "image/jpeg" });
+  } catch {
+    return file;
+  }
+}
+
 function extractedToDraft(m: ExtractedMed, i: number): DraftRow {
   // Try to parse times-per-day from frequency ("2x", "trois fois", "3 times")
   const freqStr = (m.frequency ?? "").toLowerCase();
@@ -152,7 +184,8 @@ function MedicationFormInner() {
     setParseMeta(null);
     try {
       const fd = new FormData();
-      fd.append("file", file);
+      const uploadFile = await compressPrescriptionImage(file);
+      fd.append("file", uploadFile);
       const data = (await apiUploadFile<ParsePayload>("/medication/parse", fd)) as ParsePayload;
       setParseMeta(data);
       const meds = data.structured?.medications ?? [];
@@ -245,7 +278,7 @@ function MedicationFormInner() {
     <div className="mx-auto max-w-2xl space-y-6">
       {/* Back button */}
       <Link href="/dashboard"
-        className="inline-flex items-center gap-2 text-sm font-medium text-slate-500 hover:text-indigo-600 transition-colors">
+        className="inline-flex items-center gap-2 text-sm font-medium text-slate-500 hover:text-indigo-600 transition-colors dark:text-slate-400 dark:hover:text-indigo-300">
         ← {isFr ? "Retour au tableau de bord" : isAr ? "العودة إلى لوحة التحكم" : "Back to dashboard"}
       </Link>
 
@@ -262,35 +295,35 @@ function MedicationFormInner() {
 
       <Card className="space-y-4">
         {readOnly && (
-          <p className="rounded-xl bg-amber-50 border border-amber-100 px-4 py-3 text-sm text-amber-900">{t.relativeNotice}</p>
+          <p className="rounded-xl bg-amber-50 border border-amber-100 px-4 py-3 text-sm text-amber-900 dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-200">{t.relativeNotice}</p>
         )}
 
         {/* Scan section */}
         {!manageMode && !manualMode && (
           <div className="space-y-3">
-            <label className="block text-sm font-semibold text-slate-700">
+            <label className="block text-sm font-semibold text-slate-700 dark:text-slate-200">
               {t.photoLabel}
             </label>
             {/* Custom file input to avoid browser native text */}
             <div className="flex items-center gap-3">
-              <label className={`flex-1 flex items-center gap-3 cursor-pointer rounded-xl border-2 border-dashed px-4 py-3 transition ${file ? "border-indigo-300 bg-indigo-50" : "border-slate-200 hover:border-indigo-200"} ${readOnly ? "opacity-50 cursor-not-allowed" : ""}`}>
+              <label className={`flex-1 flex items-center gap-3 cursor-pointer rounded-xl border-2 border-dashed px-4 py-3 transition ${file ? "border-indigo-300 bg-indigo-50 dark:border-indigo-600 dark:bg-indigo-950/40" : "border-slate-200 hover:border-indigo-200 dark:border-slate-500 dark:hover:border-indigo-500 dark:bg-slate-800/50"} ${readOnly ? "opacity-50 cursor-not-allowed" : ""}`}>
                 <input type="file" accept="image/*" disabled={readOnly} className="sr-only"
                   onChange={(e) => onPickFile(e.target.files?.[0] ?? null)} />
                 <span className="text-xl">{file ? "📄" : "📎"}</span>
-                <span className="text-sm text-slate-600 truncate">
+                <span className="text-sm text-slate-600 dark:text-slate-300 truncate">
                   {file ? file.name : (language === "fr" ? "Choisir une photo d'ordonnance" : language === "ar" ? "اختر صورة الوصفة الطبية" : "Choose a prescription photo")}
                 </span>
               </label>
               {file && (
                 <button type="button" onClick={() => onPickFile(null)}
-                  className="rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-500 hover:bg-slate-50">
+                  className="rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-500 hover:bg-slate-50 dark:border-slate-500 dark:text-slate-300 dark:hover:bg-slate-700">
                   ✕
                 </button>
               )}
             </div>
             {previewUrl && (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={previewUrl} alt="" className="max-h-44 rounded-2xl border border-slate-200 object-contain" />
+              <img src={previewUrl} alt="" className="max-h-44 rounded-2xl border border-slate-200 object-contain dark:border-slate-600" />
             )}
             <div className="flex flex-wrap gap-2">
               <Button onClick={runAnalysis} disabled={readOnly || !file || parsing}>
@@ -305,23 +338,23 @@ function MedicationFormInner() {
                 </Button>
               )}
             </div>
-            {parseError && <p className="text-sm text-red-600">{parseError}</p>}
+            {parseError && <p className="text-sm text-red-600 dark:text-red-400">{parseError}</p>}
           </div>
         )}
 
         {/* Manage mode header */}
         {manageMode && (
-          <p className="text-sm text-slate-500">{t.manageSubtitle}</p>
+          <p className="text-sm text-slate-500 dark:text-slate-400">{t.manageSubtitle}</p>
         )}
-        {parseError && !(!manageMode && !manualMode) && <p className="text-sm text-red-600">{parseError}</p>}
+        {parseError && !(!manageMode && !manualMode) && <p className="text-sm text-red-600 dark:text-red-400">{parseError}</p>}
 
         {loadingExisting && (
-          <p className="py-4 text-center text-sm text-slate-500">{uiText[language].common.loading}</p>
+          <p className="py-4 text-center text-sm text-slate-500 dark:text-slate-400">{uiText[language].common.loading}</p>
         )}
 
         {/* Parse meta info */}
         {parseMeta && (
-          <div className="rounded-xl bg-sky-50/80 border border-sky-100 px-4 py-3 text-xs text-slate-700">
+          <div className="rounded-xl bg-sky-50/80 border border-sky-100 px-4 py-3 text-xs text-slate-700 dark:bg-sky-950/30 dark:border-sky-800 dark:text-slate-200">
             {sourceLabel}
             {parseMeta.errors && parseMeta.errors.length > 0 && (
               <ul className="mt-1 list-inside list-disc space-y-0.5 text-amber-800">
@@ -333,10 +366,10 @@ function MedicationFormInner() {
 
         {/* Draft rows */}
         {!loadingExisting && (manualMode || manageMode || drafts.length > 0) && (
-          <div className="space-y-5 border-t border-slate-100 pt-4">
+          <div className="space-y-5 border-t border-slate-100 pt-4 dark:border-slate-700">
             {(manualMode || manageMode) && drafts.length === 0 && (
               <>
-                <p className="text-sm text-slate-400">{t.noMedications}</p>
+                <p className="text-sm text-slate-400 dark:text-slate-500">{t.noMedications}</p>
                 <Button type="button" variant="secondary" onClick={() => setDrafts([{ ...emptyDraft, id: "m0" }])}>
                   {t.openForm}
                 </Button>
@@ -344,16 +377,16 @@ function MedicationFormInner() {
             )}
 
             {drafts.map((row) => (
-              <div key={row.id} className={`rounded-2xl border p-5 shadow-sm transition-colors ${row.saved ? "border-teal-200 bg-teal-50/40" : "border-slate-200 bg-white"}`}>
+              <div key={row.id} className={`rounded-2xl border p-5 shadow-sm transition-colors ${row.saved ? "border-teal-200 bg-teal-50/40 dark:border-teal-800 dark:bg-teal-950/30" : "border-slate-200 bg-white dark:border-slate-600 dark:bg-slate-800/90"}`}>
                 {/* Status badge */}
                 <div className="flex items-center justify-between mb-4">
-                  <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
+                  <span className="text-xs font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">
                     {row.saved ? (
-                      <span className="text-teal-600">✓ {t.statusSaved}</span>
+                      <span className="text-teal-600 dark:text-teal-400">✓ {t.statusSaved}</span>
                     ) : t.statusPending}
                   </span>
                   {row.pillsPerDose > 0 && row.timesPerDay > 0 && (
-                    <span className="rounded-full bg-indigo-100 text-indigo-700 px-3 py-1 text-xs font-semibold">
+                    <span className="rounded-full bg-indigo-100 text-indigo-700 px-3 py-1 text-xs font-semibold dark:bg-indigo-950/50 dark:text-indigo-300">
                       {row.pillsPerDose} × {row.timesPerDay} = {row.pillsPerDose * row.timesPerDay} {language === "fr" ? "cp/jour" : language === "ar" ? "ق/يوم" : "pills/day"}
                     </span>
                   )}
@@ -361,9 +394,9 @@ function MedicationFormInner() {
 
                 {/* Row 1: Name */}
                 <div className="space-y-1 mb-3">
-                  <label className="text-xs font-semibold text-slate-600">{t.nameLabel}</label>
+                  <label className="text-xs font-semibold text-slate-600 dark:text-slate-300">{t.nameLabel}</label>
                   <input
-                    className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-slate-900 focus:border-indigo-400 focus:outline-none"
+                    className="field-input"
                     value={row.name}
                     onChange={(e) => updateDraft(row.id, { name: e.target.value })}
                     placeholder={language === "fr" ? "ex : Paracétamol" : language === "ar" ? "مثال: باراسيتامول" : "e.g. Paracetamol"}
@@ -372,9 +405,9 @@ function MedicationFormInner() {
 
                 {/* Row 2: Strength */}
                 <div className="space-y-1 mb-3">
-                  <label className="text-xs font-semibold text-slate-600">{t.strengthLabel}</label>
+                  <label className="text-xs font-semibold text-slate-600 dark:text-slate-300">{t.strengthLabel}</label>
                   <input
-                    className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-slate-900 focus:border-indigo-400 focus:outline-none"
+                    className="field-input"
                     value={row.strength}
                     onChange={(e) => updateDraft(row.id, { strength: e.target.value })}
                     placeholder={language === "fr" ? "ex : 500 mg · comprimé" : language === "ar" ? "مثال: 500 ملغ · قرص" : "e.g. 500 mg · tablet"}
@@ -384,37 +417,37 @@ function MedicationFormInner() {
                 {/* Row 3: Pills per dose + Times per day (side by side) */}
                 <div className="grid grid-cols-2 gap-3 mb-3">
                   <div className="space-y-1">
-                    <label className="text-xs font-semibold text-slate-600">{t.pillsPerDoseLabel}</label>
+                    <label className="text-xs font-semibold text-slate-600 dark:text-slate-300">{t.pillsPerDoseLabel}</label>
                     <div className="flex items-center gap-2">
                       <button type="button" onClick={() => updateDraft(row.id, { pillsPerDose: Math.max(1, row.pillsPerDose - 1) })}
-                        className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-100 font-bold">−</button>
-                      <span className="flex-1 text-center text-lg font-bold text-indigo-700">{row.pillsPerDose}</span>
+                        className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-100 font-bold dark:border-slate-500 dark:text-slate-200 dark:hover:bg-slate-700">−</button>
+                      <span className="flex-1 text-center text-lg font-bold text-indigo-700 dark:text-indigo-300">{row.pillsPerDose}</span>
                       <button type="button" onClick={() => updateDraft(row.id, { pillsPerDose: Math.min(10, row.pillsPerDose + 1) })}
-                        className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-100 font-bold">+</button>
+                        className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-100 font-bold dark:border-slate-500 dark:text-slate-200 dark:hover:bg-slate-700">+</button>
                     </div>
                   </div>
                   <div className="space-y-1">
-                    <label className="text-xs font-semibold text-slate-600">{t.timesPerDayLabel}</label>
+                    <label className="text-xs font-semibold text-slate-600 dark:text-slate-300">{t.timesPerDayLabel}</label>
                     <div className="flex items-center gap-2">
                       <button type="button" onClick={() => updateDraft(row.id, { timesPerDay: Math.max(1, row.timesPerDay - 1) })}
-                        className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-100 font-bold">−</button>
-                      <span className="flex-1 text-center text-lg font-bold text-indigo-700">{row.timesPerDay}</span>
+                        className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-100 font-bold dark:border-slate-500 dark:text-slate-200 dark:hover:bg-slate-700">−</button>
+                      <span className="flex-1 text-center text-lg font-bold text-indigo-700 dark:text-indigo-300">{row.timesPerDay}</span>
                       <button type="button" onClick={() => updateDraft(row.id, { timesPerDay: Math.min(6, row.timesPerDay + 1) })}
-                        className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-100 font-bold">+</button>
+                        className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-100 font-bold dark:border-slate-500 dark:text-slate-200 dark:hover:bg-slate-700">+</button>
                     </div>
                   </div>
                 </div>
 
                 {/* Row 4: Notification times (one per dose) */}
                 <div className="space-y-2 mb-3">
-                  <label className="text-xs font-semibold text-slate-600">{t.notifTimesTitle}</label>
+                  <label className="text-xs font-semibold text-slate-600 dark:text-slate-300">{t.notifTimesTitle}</label>
                   <div className="flex flex-wrap gap-2">
                     {row.times.map((time, idx) => (
-                      <div key={idx} className="flex items-center gap-1.5 rounded-xl border border-indigo-100 bg-indigo-50 px-2 py-1">
-                        <span className="text-[10px] font-bold text-indigo-500">{language === "fr" ? `Prise ${idx + 1}` : language === "ar" ? `جرعة ${idx + 1}` : `Dose ${idx + 1}`}</span>
+                      <div key={idx} className="flex items-center gap-1.5 rounded-xl border border-indigo-100 bg-indigo-50 px-2 py-1 dark:border-indigo-800 dark:bg-indigo-950/40">
+                        <span className="text-[10px] font-bold text-indigo-500 dark:text-indigo-300">{language === "fr" ? `Prise ${idx + 1}` : language === "ar" ? `جرعة ${idx + 1}` : `Dose ${idx + 1}`}</span>
                         <input type="time" value={time}
                           onChange={(e) => updateTime(row.id, idx, e.target.value)}
-                          className="rounded-lg border-0 bg-transparent text-sm font-semibold text-indigo-700 focus:outline-none" />
+                          className="rounded-lg border-0 bg-transparent text-sm font-semibold text-indigo-700 focus:outline-none dark:text-indigo-200" />
                       </div>
                     ))}
                   </div>
@@ -422,13 +455,13 @@ function MedicationFormInner() {
 
                 {/* Row 5: End date */}
                 <div className="space-y-1 mb-4">
-                  <label className="text-xs font-semibold text-slate-600">{t.endDateLabel}</label>
+                  <label className="text-xs font-semibold text-slate-600 dark:text-slate-300">{t.endDateLabel}</label>
                   <input type="date" value={row.endDate}
                     min={new Date().toISOString().slice(0, 10)}
                     onChange={(e) => updateDraft(row.id, { endDate: e.target.value })}
-                    className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-slate-900 focus:border-indigo-400 focus:outline-none"
+                    className="field-input"
                   />
-                  <p className="text-[10px] text-slate-400">{t.endDateHint}</p>
+                  <p className="text-[10px] text-slate-400 dark:text-slate-500">{t.endDateHint}</p>
                 </div>
 
                 <div className="flex items-center gap-3">
@@ -443,7 +476,7 @@ function MedicationFormInner() {
                         await apiFetch(`/medication/${row.serverId}`, { method: "DELETE" }).catch(() => {});
                         setDrafts(d => d.filter(r => r.id !== row.id));
                       }}
-                      className="rounded-xl border-2 border-red-200 bg-red-50 px-3 py-2.5 text-sm font-semibold text-red-600 hover:bg-red-100 transition-colors">
+                      className="rounded-xl border-2 border-red-200 bg-red-50 px-3 py-2.5 text-sm font-semibold text-red-600 hover:bg-red-100 transition-colors dark:border-red-800 dark:bg-red-950/40 dark:text-red-300 dark:hover:bg-red-950/60">
                       🗑
                     </button>
                   )}
@@ -451,7 +484,7 @@ function MedicationFormInner() {
                   {!row.serverId && !readOnly && (
                     <button type="button"
                       onClick={() => setDrafts(d => d.filter(r => r.id !== row.id))}
-                      className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-400 hover:bg-slate-100 transition-colors">
+                      className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-400 hover:bg-slate-100 transition-colors dark:border-slate-500 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600">
                       ✕
                     </button>
                   )}
@@ -480,8 +513,8 @@ function MedicationFormInner() {
               const saved = drafts.filter(r => r.saved).length;
               const allSaved = saved === total;
               return (
-                <div className={`rounded-2xl border-2 p-4 text-center transition-all ${allSaved ? "border-teal-400 bg-teal-50" : "border-indigo-200 bg-indigo-50"}`}>
-                  <p className={`text-sm font-semibold mb-3 ${allSaved ? "text-teal-800" : "text-indigo-800"}`}>
+                <div className={`rounded-2xl border-2 p-4 text-center transition-all ${allSaved ? "border-teal-400 bg-teal-50 dark:border-teal-700 dark:bg-teal-950/30" : "border-indigo-200 bg-indigo-50 dark:border-indigo-700 dark:bg-indigo-950/30"}`}>
+                  <p className={`text-sm font-semibold mb-3 ${allSaved ? "text-teal-800 dark:text-teal-300" : "text-indigo-800 dark:text-indigo-300"}`}>
                     {allSaved
                       ? (isFr ? `✅ Tous les médicaments sont enregistrés (${saved}/${total})` : isAr ? `✅ تم حفظ جميع الأدوية (${saved}/${total})` : `✅ All medications saved (${saved}/${total})`)
                       : (isFr ? `💊 ${saved} sur ${total} médicament(s) enregistré(s)` : isAr ? `💊 تم حفظ ${saved} من ${total}` : `💊 ${saved} of ${total} medication(s) saved`)}

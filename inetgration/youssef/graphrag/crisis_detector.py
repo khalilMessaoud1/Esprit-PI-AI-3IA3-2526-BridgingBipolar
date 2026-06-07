@@ -60,3 +60,27 @@ def is_crisis_self_harm_turn(text: str) -> bool:
         if rx.search(raw):
             return True
     return False
+
+
+def build_crisis_companion_reply(lang: str = "en") -> str:
+    """Fixed safety-first reply when self-harm / suicidal ideation is detected — never rely on the LLM alone."""
+    code = (lang or "en").strip().lower()[:2]
+    if code == "fr":
+        return (
+            "Merci de me l'avoir dit — ce que tu ressens compte vraiment, et tu n'es pas obligé(e) "
+            "d'affronter ça seul(e). Si tu es en danger immédiat, appelle le 15 (SAMU) ou le 3114 "
+            "(numéro national de prévention du suicide, 24h/24). Préviens quelqu'un de confiance ou "
+            "ton équipe soignante dès que tu peux. Es-tu en sécurité en ce moment ?"
+        )
+    if code == "ar":
+        return (
+            "شكراً لثقتك — ما تشعر به مهم، ولست وحدك. إذا كنت في خطر الآن، اتصل بخدمات الطوارئ "
+            "أو خط مساعدة محلي فوراً. حاول التواصل مع شخص تثق به أو فريق رعايتك. هل أنت بأمان "
+            "في هذه اللحظة؟"
+        )
+    return (
+        "Thank you for telling me — what you're feeling matters, and you don't have to face this alone. "
+        "If you're in immediate danger, please contact emergency services or a crisis line now "
+        "(US: call or text 988). Reach someone you trust or your care team as soon as you can. "
+        "Are you safe right now?"
+    )

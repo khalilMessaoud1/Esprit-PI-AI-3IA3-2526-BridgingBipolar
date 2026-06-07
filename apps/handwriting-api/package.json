@@ -2,8 +2,8 @@
   "name": "handwriting-api",
   "private": true,
   "scripts": {
-    "dev": "py -3.13 app.py",
-    "dev:handwriting": "py -3.13 app.py",
-    "start": "py -3.13 app.py"
+    "dev": ".venv\\Scripts\\python.exe app.py",
+    "dev:handwriting": ".venv\\Scripts\\python.exe app.py",
+    "start": ".venv\\Scripts\\python.exe app.py"
   }
 }

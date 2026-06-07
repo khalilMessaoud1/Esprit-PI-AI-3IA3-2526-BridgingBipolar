@@ -12,10 +12,17 @@ export async function apiFetch<T>(path: string, options: RequestInit = {}): Prom
     headers.set("Authorization", `Bearer ${token}`);
   }
 
-  const response = await fetch(`${API_URL}${path}`, {
-    ...options,
-    headers
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${API_URL}${path}`, {
+      ...options,
+      headers
+    });
+  } catch {
+    throw new Error(
+      `Cannot reach the API at ${API_URL}. Start the backend with: npm run dev:api (or npm run dev from the project root).`
+    );
+  }
 
   if (!response.ok) {
     const raw = await response.text();
@@ -41,11 +48,18 @@ export async function apiUploadFile<T>(path: string, formData: FormData): Promis
     headers.set("Authorization", `Bearer ${token}`);
   }
 
-  const response = await fetch(`${API_URL}${path}`, {
-    method: "POST",
-    headers,
-    body: formData
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${API_URL}${path}`, {
+      method: "POST",
+      headers,
+      body: formData
+    });
+  } catch {
+    throw new Error(
+      `Cannot reach the API at ${API_URL}. Start the backend with: npm run dev:api (or npm run dev from the project root).`
+    );
+  }
 
   if (!response.ok) {
     const raw = await response.text();

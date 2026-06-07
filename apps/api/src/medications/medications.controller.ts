@@ -50,6 +50,25 @@ export class MedicationsController {
     return this.service.list(user.id);
   }
 
+  @Get("adherence/summary")
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.PATIENT)
+  async adherenceSummary(@CurrentUser() user: { id: string }) {
+    const summary = await this.service.getAdherenceSummary(user.id, 7);
+    return { summary };
+  }
+
+  @Post("adherence/log")
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.PATIENT)
+  async logAdherence(
+    @CurrentUser() user: { id: string },
+    @Body()
+    body: { medicationId: string; scheduledDate?: string; scheduledTime: string; status: "taken" | "missed" }
+  ) {
+    return this.service.logDose(user.id, body);
+  }
+
   @Patch(":id")
   @UseGuards(RolesGuard)
   @Roles(UserRole.PATIENT)

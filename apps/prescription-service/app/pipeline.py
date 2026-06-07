@@ -12,6 +12,7 @@ import os
 import re
 import sys
 import tempfile
+import threading
 import traceback
 from typing import Any
 
@@ -24,12 +25,30 @@ from rapidfuzz import fuzz, process as fuzz_process
 # --- Lazy singletons ---
 _reader = None
 _drug_database: list[str] | None = None
+_drug_db_lock = threading.Lock()
 
 MATCH_THRESHOLD = 82
 
 OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434")
-# Default matches common installs; override with OLLAMA_MODEL (e.g. llama3:8b).
 OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "llama3.2:latest")
+OLLAMA_NUM_PREDICT = int(os.environ.get("PRESCRIPTION_OLLAMA_NUM_PREDICT", "320"))
+OLLAMA_NUM_CTX = int(os.environ.get("PRESCRIPTION_OLLAMA_NUM_CTX", "2048"))
+USE_OLLAMA = os.environ.get("PRESCRIPTION_USE_OLLAMA", "1").strip().lower() in ("1", "true", "yes")
+OCR_MAX_VARIANTS = max(1, min(5, int(os.environ.get("PRESCRIPTION_OCR_MAX_VARIANTS", "2"))))
+OCR_MAX_SIDE = int(os.environ.get("PRESCRIPTION_MAX_IMAGE_SIDE", "1600"))
+OCR_EARLY_EXIT_SCORE = float(os.environ.get("PRESCRIPTION_OCR_EARLY_EXIT_SCORE", "14"))
+DRUG_DB_ONLINE = os.environ.get("PRESCRIPTION_DRUG_DB_ONLINE", "1").strip().lower() in ("1", "true", "yes")
+FUZZY_MAX_WORDS = int(os.environ.get("PRESCRIPTION_FUZZY_MAX_WORDS", "35"))
+
+BUILTIN_DRUGS = {
+    "Lithium", "Quetiapine", "Quétiapine", "Lamotrigine", "Valproate", "Valproate de sodium",
+    "Olanzapine", "Aripiprazole", "Risperidone", "Rispéridone", "Sertraline", "Fluoxétine",
+    "Fluoxetine", "Escitalopram", "Paroxetine", "Paroxétine", "Lorazepam", "Lorazépam",
+    "Clonazepam", "Clonazépam", "Zolpidem", "Trazodone", "Bupropion", "Venlafaxine",
+    "Amoxicilline", "Amoxicillin", "Paracétamol", "Paracetamol", "Ibuprofène", "Ibuprofen",
+    "Oméprazole", "Omeprazole", "Metformine", "Metformin", "Doliprane", "Spasfon",
+    "Levothyrox", "Levothyroxine", "Bisoprolol", "Amlodipine", "Ramipril", "Atorvastatine",
+}
 
 
 def _ensure_utf8_console() -> None:
@@ -83,11 +102,24 @@ def get_reader():
     return _reader
 
 
-def load_rxnorm_names(max_names: int = 6000) -> list[str]:
+def _cache_dir() -> str:
+    path = os.environ.get(
+        "PRESCRIPTION_CACHE_DIR",
+        os.path.join(tempfile.gettempdir(), "bb_prescription_cache"),
+    )
+    os.makedirs(path, exist_ok=True)
+    return path
+
+
+def _drug_db_cache_path() -> str:
+    return os.path.join(_cache_dir(), "drug_db.json")
+
+
+def load_rxnorm_names(max_names: int = 2500) -> list[str]:
     names: set[str] = set()
     try:
         url = "https://rxnav.nlm.nih.gov/REST/allconcepts.json?tty=IN+PIN+BN+SCDC+SBD"
-        resp = requests.get(url, timeout=45)
+        resp = requests.get(url, timeout=15)
         resp.raise_for_status()
         data = resp.json()
         concepts = data.get("minConceptGroup", {}).get("minConcept", [])
@@ -120,7 +152,7 @@ def load_bdpm_names() -> list[str]:
     names: set[str] = set()
     bdpm_url = "https://base-donnees-publique.medicaments.gouv.fr/telechargement.php?fichier=CIS_bdpm.txt"
     try:
-        resp = requests.get(bdpm_url, timeout=45)
+        resp = requests.get(bdpm_url, timeout=15)
         resp.raise_for_status()
         content = resp.content.decode("latin-1")
         for line in content.strip().split("\n"):
@@ -149,14 +181,73 @@ def load_bdpm_names() -> list[str]:
     return list(names)
 
 
+def _load_drug_db_from_cache() -> list[str] | None:
+    path = _drug_db_cache_path()
+    if not os.path.isfile(path):
+        return None
+    try:
+        with open(path, encoding="utf-8") as fh:
+            data = json.load(fh)
+        if isinstance(data, list) and len(data) >= 50:
+            return [str(d) for d in data if isinstance(d, str) and 4 <= len(d) <= 80]
+    except (OSError, json.JSONDecodeError, TypeError):
+        pass
+    return None
+
+
+def _save_drug_db_cache(names: list[str]) -> None:
+    try:
+        with open(_drug_db_cache_path(), "w", encoding="utf-8") as fh:
+            json.dump(names[:12000], fh)
+    except OSError:
+        pass
+
+
+def _fetch_drug_database_online() -> list[str]:
+    rx = load_rxnorm_names()
+    bd = load_bdpm_names()
+    merged = list(set(rx + bd + list(BUILTIN_DRUGS)))
+    return [d for d in merged if 4 <= len(d) <= 80]
+
+
 def get_drug_database() -> list[str]:
     global _drug_database
-    if _drug_database is None:
-        rx = load_rxnorm_names()
-        bd = load_bdpm_names()
-        merged = list(set(rx + bd))
-        _drug_database = [d for d in merged if 4 <= len(d) <= 80]
-    return _drug_database
+    if _drug_database is not None:
+        return _drug_database
+
+    with _drug_db_lock:
+        if _drug_database is not None:
+            return _drug_database
+
+        cached = _load_drug_db_from_cache()
+        if cached:
+            _drug_database = cached
+            if DRUG_DB_ONLINE:
+                threading.Thread(target=_refresh_drug_db_background, daemon=True).start()
+            return _drug_database
+
+        _drug_database = sorted(BUILTIN_DRUGS)
+        if DRUG_DB_ONLINE:
+            try:
+                _drug_database = _fetch_drug_database_online()
+                _save_drug_db_cache(_drug_database)
+            except Exception:
+                pass
+            threading.Thread(target=_refresh_drug_db_background, daemon=True).start()
+        return _drug_database
+
+
+def _refresh_drug_db_background() -> None:
+    global _drug_database
+    if not DRUG_DB_ONLINE:
+        return
+    try:
+        fresh = _fetch_drug_database_online()
+        if len(fresh) >= 50:
+            _save_drug_db_cache(fresh)
+            _drug_database = fresh
+    except Exception:
+        pass
 
 
 def clean_ocr_text(text: str) -> str:
@@ -179,6 +270,7 @@ def extract_word_candidates(text: str) -> list[str]:
 
 def fuzzy_correct(text: str, database: list[str], threshold: int = MATCH_THRESHOLD) -> tuple[str, list[tuple[str, str, float]]]:
     candidates = extract_word_candidates(text)
+    candidates = sorted(candidates, key=len, reverse=True)[:FUZZY_MAX_WORDS]
     corrected = text
     corrections: list[tuple[str, str, float]] = []
     for word in candidates:
@@ -211,12 +303,13 @@ def image_bytes_to_bgr(image_bytes: bytes) -> np.ndarray:
     return img
 
 
-def _resize_if_needed(img: np.ndarray, max_side: int = 2200) -> np.ndarray:
+def _resize_if_needed(img: np.ndarray, max_side: int | None = None) -> np.ndarray:
+    limit = max_side if max_side is not None else OCR_MAX_SIDE
     h, w = img.shape[:2]
     m = max(h, w)
-    if m <= max_side:
+    if m <= limit:
         return img
-    scale = max_side / float(m)
+    scale = limit / float(m)
     return cv2.resize(img, (int(w * scale), int(h * scale)), interpolation=cv2.INTER_AREA)
 
 
@@ -225,27 +318,19 @@ def prepare_ocr_images(image_bytes: bytes) -> list[np.ndarray]:
         base = _resize_if_needed(image_bytes_to_bgr(image_bytes))
     except Exception as exc:
         raise ValueError("Impossible de lire l'image") from exc
-    variants: list[np.ndarray] = [base]
+    variants: list[np.ndarray] = []
 
     gray = cv2.cvtColor(base, cv2.COLOR_BGR2GRAY)
     blur = cv2.bilateralFilter(gray, 9, 75, 75)
     clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
     norm = clahe.apply(blur)
-    variants.append(norm)
 
     thr = cv2.adaptiveThreshold(norm, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, 31, 10)
-    variants.append(thr)
-
-    # Light sharpening for faint scans
     kernel = np.array([[0, -1, 0], [-1, 5, -1], [0, -1, 0]], dtype=np.float32)
     sharp = cv2.filter2D(base, -1, kernel)
-    variants.append(sharp)
-
-    # Slight upscale for small text
     up = cv2.resize(base, None, fx=1.4, fy=1.4, interpolation=cv2.INTER_CUBIC)
-    variants.append(up)
-
-    return variants
+    all_variants = [base, norm, thr, sharp, up]
+    return all_variants[:OCR_MAX_VARIANTS]
 
 
 def _score_ocr_output(raw: list[list[Any]]) -> float:
@@ -265,14 +350,13 @@ def _score_ocr_output(raw: list[list[Any]]) -> float:
 
 
 def _ocr_variant(reader: Any, img: np.ndarray) -> list[list[Any]]:
-    """Run EasyOCR on one image variant with Windows-safe fallbacks.
-
-    Some setups fail on file paths, others fail on numpy arrays; try both.
-    """
-    tmp_path: str | None = None
-    last_exc: Exception | None = None
+    """Run EasyOCR on one image variant (numpy first — faster than temp files)."""
     try:
-        # Try file-path mode first in a dedicated local temp directory.
+        return reader.readtext(img, detail=1, paragraph=False)
+    except Exception as exc:
+        last_exc = exc
+    tmp_path: str | None = None
+    try:
         temp_dir = os.environ.get(
             "PRESCRIPTION_OCR_TEMP_DIR",
             os.path.join(tempfile.gettempdir(), "bb_ocr_tmp"),
@@ -283,13 +367,8 @@ def _ocr_variant(reader: Any, img: np.ndarray) -> list[list[Any]]:
         if not cv2.imwrite(tmp_path, img):
             raise ValueError("Impossible d'écrire l'image temporaire OCR")
         return reader.readtext(tmp_path, detail=1, paragraph=False)
-    except Exception as exc:
-        last_exc = exc
-        # Fallback: direct numpy array.
-        try:
-            return reader.readtext(img, detail=1, paragraph=False)
-        except Exception as exc2:
-            raise ValueError(f"{last_exc}; fallback-array: {exc2}") from exc2
+    except Exception as exc2:
+        raise ValueError(f"{last_exc}; fallback-file: {exc2}") from exc2
     finally:
         if tmp_path and os.path.exists(tmp_path):
             try:
@@ -306,7 +385,7 @@ def run_ocr(image_bytes: bytes) -> tuple[list[dict[str, Any]], str]:
     last_exc: Exception | None = None
     error_samples: list[str] = []
 
-    for img in variants:
+    for idx, img in enumerate(variants):
         try:
             raw = _ocr_variant(reader, img)
         except Exception as exc:
@@ -318,6 +397,8 @@ def run_ocr(image_bytes: bytes) -> tuple[list[dict[str, Any]], str]:
         if score > best_score:
             best_score = score
             best_raw = raw
+        if score >= OCR_EARLY_EXIT_SCORE and (idx == 0 or score >= OCR_EARLY_EXIT_SCORE * 1.35):
+            break
 
     if not best_raw:
         details = f" Détails: {' | '.join(error_samples)}" if error_samples else ""
@@ -356,40 +437,28 @@ def check_ollama_status() -> tuple[bool, bool, list[str]]:
 
 
 def build_prompt(text: str) -> str:
-    return f"""You are a clinical pharmacist AI. Extract all medications from this prescription text.
-Return ONLY valid JSON. No explanation. No markdown. No extra text.
+    clipped = text[:3500]
+    return f"""Extract medications from this prescription OCR text. Return ONLY valid JSON, no markdown.
 
-Required JSON schema:
-{{
-  "patient":    "patient name or null",
-  "prescriber": "doctor name or null",
-  "date":       "date in YYYY-MM-DD or null",
-  "remarks":    "non-medication notes for the patient or null",
-  "medications": [
-    {{
-      "name":         "official drug name",
-      "dose":         "dose with unit (e.g. 500mg, 1g)",
-      "frequency":    "how often (e.g. 3x/day, twice daily, every 8h)",
-      "duration":     "duration (e.g. 7 days) or null",
-      "route":        "route of administration (oral, IV, etc.) or null",
-      "instructions": "special instructions or null"
-    }}
-  ]
-}}
+Schema:
+{{"patient":null,"prescriber":null,"date":null,"remarks":null,"medications":[{{"name":"","dose":"","frequency":"","duration":null,"route":null,"instructions":null}}]}}
 
-Prescription text:
----
-{text}
----
+Text:
+{clipped}
 JSON:"""
 
 
-def call_ollama(text: str, model: str = OLLAMA_MODEL, timeout: int = 120) -> str:
+def call_ollama(text: str, model: str = OLLAMA_MODEL, timeout: int = 90) -> str:
     payload = {
         "model": model,
         "prompt": build_prompt(text),
         "stream": False,
-        "options": {"temperature": 0.1, "num_predict": 800},
+        "keep_alive": "10m",
+        "options": {
+            "temperature": 0.05,
+            "num_predict": OLLAMA_NUM_PREDICT,
+            "num_ctx": OLLAMA_NUM_CTX,
+        },
     }
     resp = requests.post(f"{OLLAMA_URL}/api/generate", json=payload, timeout=timeout)
     resp.raise_for_status()
@@ -486,6 +555,44 @@ def heuristic_medications(text: str) -> dict[str, Any]:
     }
 
 
+def _heuristic_is_usable(data: dict[str, Any]) -> bool:
+    meds = data.get("medications")
+    if not isinstance(meds, list) or not meds:
+        return False
+    for med in meds:
+        if not isinstance(med, dict):
+            continue
+        name = str(med.get("name") or "").strip()
+        dose = str(med.get("dose") or "").strip()
+        if name and name != "À compléter manuellement" and dose:
+            return True
+    return False
+
+
+def warmup() -> None:
+    """Preload OCR + drug cache (+ optional Ollama ping) at service startup."""
+    get_reader()
+    get_drug_database()
+    if not USE_OLLAMA:
+        return
+    try:
+        ok, llama_ok, _ = check_ollama_status()
+        if ok and llama_ok:
+            requests.post(
+                f"{OLLAMA_URL}/api/generate",
+                json={
+                    "model": OLLAMA_MODEL,
+                    "prompt": "ok",
+                    "stream": False,
+                    "keep_alive": "10m",
+                    "options": {"num_predict": 1, "num_ctx": 512},
+                },
+                timeout=45,
+            )
+    except requests.RequestException:
+        pass
+
+
 def process_prescription_bytes(image_bytes: bytes) -> dict[str, Any]:
     errors: list[str] = []
     result: dict[str, Any] = {
@@ -538,7 +645,12 @@ def process_prescription_bytes(image_bytes: bytes) -> dict[str, Any]:
     ollama_ok, llama3_ok, _ = check_ollama_status()
     structured = None
     llm_raw = None
-    if ollama_ok and llama3_ok:
+    heuristic = heuristic_medications(corr)
+
+    if _heuristic_is_usable(heuristic):
+        structured = heuristic
+        result["structured_source"] = "heuristic"
+    elif USE_OLLAMA and ollama_ok and llama3_ok:
         try:
             llm_raw = call_ollama(corr)
             result["llm_response"] = llm_raw
@@ -554,9 +666,9 @@ def process_prescription_bytes(image_bytes: bytes) -> dict[str, Any]:
             errors.append(f"LLM: {e}")
 
     if structured is None:
-        structured = heuristic_medications(corr)
+        structured = heuristic
         result["structured_source"] = "heuristic"
-    else:
+    elif result.get("structured_source") is None:
         result["structured_source"] = "ollama"
 
     result["structured"] = structured
