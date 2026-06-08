@@ -4,26 +4,49 @@ Supports visuels pour la publication ESPRIT.
 
 ## Captures d'écran (`screenshots/`)
 
-| Fichier | Description |
-|---------|-------------|
-| `01-landing-light.png` | Page d'accueil (mode clair) |
-| `02-landing-dark.png` | Page d'accueil (mode sombre) |
-| `03-patient-dashboard-light.png` | Dashboard patient — humeur, YMRS/HDRS, alertes |
-| `04-patient-dashboard-dark.png` | Dashboard patient (mode sombre) |
-| `05-companion-chat-light.png` | Companion IA — conversation texte / voix |
-| `06-companion-chat-dark.png` | Companion IA (mode sombre) |
-| `07-doctor-clinical-decision-manic.png` | Espace médecin — synthèse clinique (risque maniaque) |
-| `08-doctor-clinical-decision-depressive-dark.png` | Espace médecin — risque dépressif (mode sombre) |
-| `09-emergency-alert-light.png` | Contact d'urgence — alerte critique |
-| `10-emergency-alert-dark.png` | Contact d'urgence (mode sombre) |
-
 Parcours recommandé pour la soutenance : **01 → 03 → 05 → 07 → 09**.
 
-## Vidéo (recommandé)
+### 01 — Page d'accueil (mode clair)
 
-- Durée : 2 à 5 minutes
-- Montrer : inscription → check-in → vue médecin
-- Hébergement : YouTube (non listé), Google Drive, ou Loom
+![Page d'accueil — mode clair](screenshots/01-landing-light.png)
+
+### 02 — Page d'accueil (mode sombre)
+
+![Page d'accueil — mode sombre](screenshots/02-landing-dark.png)
+
+### 03 — Dashboard patient (mode clair)
+
+![Dashboard patient — humeur, YMRS/HDRS, alertes](screenshots/03-patient-dashboard-light.png)
+
+### 04 — Dashboard patient (mode sombre)
+
+![Dashboard patient — mode sombre](screenshots/04-patient-dashboard-dark.png)
+
+### 05 — Companion IA (mode clair)
+
+![Companion IA — conversation texte / voix](screenshots/05-companion-chat-light.png)
+
+### 06 — Companion IA (mode sombre)
+
+![Companion IA — mode sombre](screenshots/06-companion-chat-dark.png)
+
+### 07 — Espace médecin — risque maniaque
+
+![Synthèse clinique — risque maniaque](screenshots/07-doctor-clinical-decision-manic.png)
+
+### 08 — Espace médecin — risque dépressif (mode sombre)
+
+![Synthèse clinique — risque dépressif](screenshots/08-doctor-clinical-decision-depressive-dark.png)
+
+### 09 — Alerte critique (mode clair)
+
+![Contact d'urgence — alerte critique](screenshots/09-emergency-alert-light.png)
+
+### 10 — Alerte critique (mode sombre)
+
+![Contact d'urgence — mode sombre](screenshots/10-emergency-alert-dark.png)
+
+## Vidéo
 
 **Lien démo :** https://youtu.be/jfptvoVh6F4
 
