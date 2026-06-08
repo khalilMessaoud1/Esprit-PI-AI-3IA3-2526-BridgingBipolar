@@ -26,7 +26,7 @@
 | **Lien GitHub** | https://github.com/khalilMessaoud1/Esprit-PI-AI-3IA3-2526-BridgingBipolar |
 | **Technologies utilisées** | Next.js 14, React, Tailwind CSS, NestJS, Prisma, PostgreSQL, Python (FastAPI / Flask), Ollama, Qdrant, GraphRAG, Docker Compose, scikit-learn, Whisper |
 | **Type de projet** | Web + IA |
-| **Commande de lancement** | `npm install` → `.\scripts\setup-env.ps1` → `npm run dev:deps` → `.\scripts\start-dev.ps1` |
+| **Commande de lancement** | `npm install` → `.\scripts\setup-env.ps1` → `npm run dev:deps` → `.\scripts\download-models.ps1` → `.\scripts\start-dev.ps1` |
 | **Temps d'installation estimé** | ~10 min (web + API) · ~20–40 min (stack IA complète + Ollama) |
 | **Lien de déploiement** | Non disponible |
 | **Modèles IA (annexe A)** | https://huggingface.co/khalil0101/BridgingBipolar-models — `.\scripts\download-models.ps1` |
@@ -40,6 +40,7 @@ cd Esprit-PI-AI-3IA3-2526-BridgingBipolar
 npm install
 .\scripts\setup-env.ps1
 npm run dev:deps
+.\scripts\download-models.ps1
 npm run dev
 ```
 

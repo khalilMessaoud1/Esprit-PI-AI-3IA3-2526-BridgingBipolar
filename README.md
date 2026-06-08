@@ -174,14 +174,19 @@ Puis lancez web/api localement avec `npm run dev`.
 
 ## Test utilisateur externe
 
-```bash
+```powershell
 git clone https://github.com/khalilMessaoud1/Esprit-PI-AI-3IA3-2526-BridgingBipolar.git
 cd Esprit-PI-AI-3IA3-2526-BridgingBipolar
 npm install
 .\scripts\setup-env.ps1
 npm run dev:deps
+.\scripts\download-models.ps1   # modèles HF (voix, keystroke) — non inclus dans start-dev.ps1
 .\scripts\start-dev.ps1
 ```
+
+> **Modèles Hugging Face** : `download-models.ps1` n’est **pas** lancé automatiquement par `setup-env.ps1` ni `start-dev.ps1`.  
+> Obligatoire pour l’analyse vocale (phase-monitor) et le comportement digital ; **optionnel** pour inscription + dashboards web/API seuls.  
+> **Ollama** (companion, OCR) : `ollama pull llama3.2:3b` et `ollama pull llava:7b` si vous testez la stack IA complète.
 
 Vérifiez :
 
