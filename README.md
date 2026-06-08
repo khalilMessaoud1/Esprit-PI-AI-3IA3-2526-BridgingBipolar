@@ -70,9 +70,17 @@ npm install
 ### 3. Variables d'environnement
 
 ```powershell
-# Windows
+# Windows — PowerShell
 .\scripts\setup-env.ps1
 ```
+
+```cmd
+REM Windows — Invite de commandes (CMD) : utiliser .cmd, pas .ps1
+scripts\setup-env.cmd
+```
+
+> **CMD ouvre le Bloc-notes ?** Sous l’invite de commandes classique (`cmd.exe`), les fichiers `.ps1` ne s’exécutent pas — Windows les ouvre en texte. Utilisez les scripts **`.cmd`** (`setup-env.cmd`, `download-models.cmd`, `start-dev.cmd`) ou lancez :  
+> `powershell -ExecutionPolicy Bypass -File .\scripts\setup-env.ps1`
 
 Puis éditez si besoin :
 
@@ -91,14 +99,16 @@ npm run dev:deps
 
 Démarre **PostgreSQL** (5432) et **Qdrant** (6333), puis applique les migrations Prisma.
 
-### 5. Environnement Python RAG (une fois — stack complète)
+### 5. Environnements Python (une fois — stack complète)
 
 ```powershell
-cd rag_api
-python -m venv .venv
-.\.venv\Scripts\pip install -r requirements-lite.txt
-cd ..
+.\scripts\setup-python.ps1
 ```
+
+Crée `.venv` + installe les dépendances pour **ml-service**, **handwriting-api** et **rag_api**.  
+*(CMD : `scripts\setup-python.cmd`)*
+
+Sans cette étape, `start-dev.ps1` échoue sur `.venv\Scripts\python.exe` introuvable.
 
 ### 6. (Optionnel) Index GraphRAG
 
@@ -135,10 +145,14 @@ Ou entraînez les modèles clavier en local :
 ### Stack complète (recommandé — Windows)
 
 ```powershell
+.\scripts\setup-env.ps1
+npm install
 .\scripts\start-dev.ps1
 ```
 
-Ouvre plusieurs fenêtres : Web, API, RAG, ML, handwriting, phase-monitor.
+`start-dev.ps1` configure automatiquement au **premier lancement** : venvs Python, Docker/Prisma, puis ouvre Web, API, RAG, ML, handwriting et phase-monitor.
+
+*(CMD : `scripts\setup-env.cmd` puis `scripts\start-dev.cmd`)*
 
 | Service | URL |
 |---------|-----|
@@ -174,15 +188,19 @@ Puis lancez web/api localement avec `npm run dev`.
 
 ## Test utilisateur externe
 
-```powershell
+```cmd
 git clone https://github.com/khalilMessaoud1/Esprit-PI-AI-3IA3-2526-BridgingBipolar.git
 cd Esprit-PI-AI-3IA3-2526-BridgingBipolar
 npm install
-.\scripts\setup-env.ps1
+scripts\setup-env.cmd
 npm run dev:deps
-.\scripts\download-models.ps1   # modèles HF (voix, keystroke) — non inclus dans start-dev.ps1
-.\scripts\start-dev.ps1
+npm run prisma:generate --workspace apps/api
+scripts\setup-python.cmd
+scripts\download-models.cmd
+scripts\start-dev.cmd
 ```
+
+*(PowerShell : remplacer `.cmd` par `.ps1` — ex. `.\scripts\setup-env.ps1`)*
 
 > **Modèles Hugging Face** : `download-models.ps1` n’est **pas** lancé automatiquement par `setup-env.ps1` ni `start-dev.ps1`.  
 > Obligatoire pour l’analyse vocale (phase-monitor) et le comportement digital ; **optionnel** pour inscription + dashboards web/API seuls.  

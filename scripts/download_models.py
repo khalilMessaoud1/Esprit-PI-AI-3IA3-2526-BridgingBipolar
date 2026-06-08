@@ -36,11 +36,28 @@ def is_placeholder_url(url: str) -> bool:
 
 def download_file(url: str, dest: Path) -> None:
     dest.parent.mkdir(parents=True, exist_ok=True)
+    rel = dest.relative_to(ROOT)
     req = urllib.request.Request(url, headers={"User-Agent": "BridgingBipolar-model-downloader/1.0"})
-    with urllib.request.urlopen(req, timeout=120) as resp:
-        data = resp.read()
-    dest.write_bytes(data)
-    print(f"  OK  {dest.relative_to(ROOT)} ({len(data):,} bytes)")
+    with urllib.request.urlopen(req, timeout=300) as resp:
+        total = int(resp.headers.get("Content-Length", 0))
+        if total:
+            print(f"  downloading {rel} ({total / (1024 * 1024):.1f} MB) ...", flush=True)
+        else:
+            print(f"  downloading {rel} ...", flush=True)
+        chunk_size = 1024 * 256
+        downloaded = 0
+        with dest.open("wb") as out:
+            while True:
+                chunk = resp.read(chunk_size)
+                if not chunk:
+                    break
+                out.write(chunk)
+                downloaded += len(chunk)
+                if total and downloaded % (chunk_size * 40) < chunk_size:
+                    pct = downloaded * 100 // total
+                    print(f"    {pct}% ({downloaded / (1024 * 1024):.1f} MB)", flush=True)
+    size = dest.stat().st_size
+    print(f"  OK  {rel} ({size:,} bytes)", flush=True)
 
 
 def train_keystroke(manifest: dict) -> int:

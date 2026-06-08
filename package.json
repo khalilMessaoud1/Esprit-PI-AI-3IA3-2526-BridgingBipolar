@@ -12,7 +12,7 @@
     "dev:prescription": "npm --prefix apps/prescription-service run dev",
     "dev:ml": "npm --workspace apps/ml-service run dev",
     "dev:handwriting": "npm --workspace apps/handwriting-api run dev",
-    "dev:deps": "docker compose up -d postgres qdrant && npm run prisma:migrate:deploy --workspace apps/api",
+    "dev:deps": "docker compose up -d postgres qdrant && npm run prisma:migrate:deploy --workspace apps/api && npm run prisma:generate --workspace apps/api",
     "dev:stack": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/start-dev.ps1",
     "dev:web:fix": "node ./apps/web/scripts/clean-next.cjs && npm run dev --workspace apps/web -- -p 3000",
     "rag:ingest": "cd inetgration/youssef && ..\\..\\rag_api\\.venv\\Scripts\\python.exe run_ingestion.py --skip_neo4j",
