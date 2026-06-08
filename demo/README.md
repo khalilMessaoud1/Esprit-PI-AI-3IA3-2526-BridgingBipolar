@@ -28,7 +28,3 @@ Parcours recommandé pour la soutenance : **01 → 03 → 05 → 07 → 09**.
 **Lien démo :** https://youtu.be/jfptvoVh6F4
 
 ## Déploiement (optionnel)
-
-Si une instance publique est disponible :
-
-**URL :** _[À compléter]_
