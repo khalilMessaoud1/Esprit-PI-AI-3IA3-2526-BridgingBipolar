@@ -8,7 +8,7 @@ Guide source : *Guide Étudiant GitHub ESPRIT* (2025-2026).
 - [ ] Branche principale : `main`
 - [ ] Pas de `node_modules/`, `.next/`, `dist/`, `.venv/` commités
 - [ ] Pas de `.env` réels (Twilio, Redis, AWS…) — uniquement `.env.example`
-- [ ] Pas de modèles ML lourds (`.pkl`, `.pt`, …)
+- [x] Pas de modèles ML lourds (`.pkl`, `.pt`, …) — script `download-models.ps1` + [`models/manifest.json`](../models/manifest.json)
 
 ## Étape 2 — Fichiers obligatoires
 
@@ -16,7 +16,7 @@ Guide source : *Guide Étudiant GitHub ESPRIT* (2025-2026).
 - [x] `.gitignore`
 - [x] `.env.example` (+ templates par service)
 - [x] `docs/` (architecture, API, IA)
-- [ ] `demo/` — ajouter captures PNG + lien vidéo
+- [x] `demo/` — 10 captures PNG + vidéo https://youtu.be/jfptvoVh6F4
 - [x] `package.json` (monorepo)
 
 ## Étape 3 — Projet lançable
@@ -52,7 +52,7 @@ Cloner dans un dossier vide et suivre **uniquement** le README :
 ## Actions restantes (équipe)
 
 1. Remplir **Auteurs / Classe / PI** dans `README.md`
-2. Ajouter **3–5 captures** dans `demo/screenshots/`
-3. Enregistrer une **vidéo démo** (2–5 min) et mettre le lien dans `demo/README.md`
+2. ~~Ajouter **3–5 captures** dans `demo/screenshots/`~~ ✓ (10 captures)
+3. ~~Enregistrer une **vidéo démo**~~ ✓ https://youtu.be/jfptvoVh6F4
 4. Créer le repo GitHub public et pousser
 5. Demander la publication sur l'organisation ESPRIT

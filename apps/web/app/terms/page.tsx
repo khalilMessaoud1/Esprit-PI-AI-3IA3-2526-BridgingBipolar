@@ -1,23 +1,39 @@
 "use client";
 
-import Link from "next/link";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useLanguage } from "../../hooks/useLanguage";
 import { termsContent } from "../../lib/termsContent";
 
 export default function TermsPage() {
+  const router = useRouter();
   const { language } = useLanguage();
   const lang = language === "fr" || language === "ar" ? language : "en";
   const t = termsContent[lang];
+  const [fromSignup, setFromSignup] = useState(false);
+
+  useEffect(() => {
+    setFromSignup(new URLSearchParams(window.location.search).get("from") === "signup");
+  }, []);
+
+  const handleBack = () => {
+    if (fromSignup && window.history.length > 1) {
+      router.back();
+      return;
+    }
+    router.push("/signup");
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-emerald-50 px-4 py-10 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
       <div className="mx-auto max-w-2xl">
-        <Link
-          href="/signup"
+        <button
+          type="button"
+          onClick={handleBack}
           className="mb-6 inline-block text-sm font-medium text-primary hover:underline dark:text-sky-400"
         >
           {t.backLabel}
-        </Link>
+        </button>
 
         <article className="rounded-3xl border border-slate-200/80 bg-white/95 p-8 shadow-xl backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/95">
           <header className="mb-8 border-b border-slate-200 pb-6 dark:border-slate-600">

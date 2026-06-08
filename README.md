@@ -214,7 +214,7 @@ Vérifiez :
 
 ## Démo
 
-Captures d'écran et lien vidéo : voir le dossier [`demo/`](demo/README.md).
+Captures d'écran et [vidéo démo](https://youtu.be/jfptvoVh6F4) : voir le dossier [`demo/`](demo/README.md).
 
 ---
 

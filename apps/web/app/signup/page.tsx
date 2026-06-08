@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import AuthLayout from "../../components/AuthLayout";
@@ -14,6 +14,40 @@ import { apiFetch } from "../../lib/api";
 import { uiText } from "../../lib/i18n";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4001";
+const SIGNUP_DRAFT_KEY = "bb_signup_draft";
+
+type SignupDraft = {
+  name: string;
+  email: string;
+  birthDate: string;
+  password: string;
+  confirmPassword: string;
+  supervisorPhone: string;
+  patientCode: string;
+  role: UserRole;
+  acceptedTerms: boolean;
+};
+
+function readSignupDraft(): SignupDraft | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = sessionStorage.getItem(SIGNUP_DRAFT_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw) as SignupDraft;
+  } catch {
+    return null;
+  }
+}
+
+function writeSignupDraft(draft: SignupDraft) {
+  if (typeof window === "undefined") return;
+  sessionStorage.setItem(SIGNUP_DRAFT_KEY, JSON.stringify(draft));
+}
+
+function clearSignupDraft() {
+  if (typeof window === "undefined") return;
+  sessionStorage.removeItem(SIGNUP_DRAFT_KEY);
+}
 
 export default function SignupPage() {
   const router = useRouter();
@@ -42,6 +76,42 @@ export default function SignupPage() {
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [draftLoaded, setDraftLoaded] = useState(false);
+
+  const buildDraft = (): SignupDraft => ({
+    name,
+    email,
+    birthDate,
+    password,
+    confirmPassword,
+    supervisorPhone,
+    patientCode,
+    role,
+    acceptedTerms,
+  });
+
+  const persistDraft = () => writeSignupDraft(buildDraft());
+
+  useEffect(() => {
+    const draft = readSignupDraft();
+    if (draft) {
+      setName(draft.name ?? "");
+      setEmail(draft.email ?? "");
+      setBirthDate(draft.birthDate ?? "");
+      setPassword(draft.password ?? "");
+      setConfirmPassword(draft.confirmPassword ?? "");
+      setSupervisorPhone(draft.supervisorPhone ?? "");
+      setPatientCode(draft.patientCode ?? "");
+      setRole(draft.role ?? "PATIENT");
+      setAcceptedTerms(Boolean(draft.acceptedTerms));
+    }
+    setDraftLoaded(true);
+  }, []);
+
+  useEffect(() => {
+    if (!draftLoaded) return;
+    persistDraft();
+  }, [draftLoaded, name, email, birthDate, password, confirmPassword, supervisorPhone, patientCode, role, acceptedTerms]);
 
   const handleSubmit = async () => {
     try {
@@ -144,6 +214,7 @@ export default function SignupPage() {
       }
 
       router.push(postAuthPath(nextUser));
+      clearSignupDraft();
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -283,9 +354,8 @@ export default function SignupPage() {
           <span className="leading-snug text-textPrimary dark:text-slate-200">
             {signupCopy.acceptTermsPrefix}{" "}
             <Link
-              href="/terms"
-              target="_blank"
-              rel="noopener noreferrer"
+              href="/terms?from=signup"
+              onClick={persistDraft}
               className="font-semibold text-primary underline underline-offset-2 hover:opacity-90 dark:text-sky-400"
             >
               {signupCopy.termsLink}
