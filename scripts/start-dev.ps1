@@ -79,11 +79,17 @@ if ($missingVenv.Count -gt 0) {
 }
 
 if (-not $SkipDeps) {
-Write-Host "[2/3] Docker + Prisma + API build..." -ForegroundColor Yellow
+    Write-Host "[2/3] Docker + Prisma + API build..." -ForegroundColor Yellow
     npm run dev:deps
     if ($LASTEXITCODE -ne 0) {
-        Write-Host "dev:deps failed. Start Docker Desktop, then retry." -ForegroundColor Red
-        exit 1
+        $prismaClient = Join-Path $Root "node_modules\.prisma\client\index.js"
+        if (Test-Path $prismaClient) {
+            Write-Host "WARNING: dev:deps failed (often Prisma EPERM if BB Nest API is still open)." -ForegroundColor Yellow
+            Write-Host "  Prisma client already exists - continuing. Close old API windows, then retry later if needed." -ForegroundColor Yellow
+        } else {
+            Write-Host "dev:deps failed. Start Docker Desktop, close BB Nest API windows, then retry." -ForegroundColor Red
+            exit 1
+        }
     }
     if (-not (Test-Path (Join-Path $Root "apps\api\dist\main.js"))) {
         Write-Host "  Building API (dist/main.js missing)..." -ForegroundColor Yellow
