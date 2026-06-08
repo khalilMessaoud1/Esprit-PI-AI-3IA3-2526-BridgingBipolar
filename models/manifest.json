@@ -1,0 +1,77 @@
+{
+  "version": 1,
+  "description": "Modèles entraînés BridgingBipolar — non versionnés dans Git (conformité ESPRIT).",
+  "base_url": "https://huggingface.co/khalil0101/BridgingBipolar-models/resolve/main",
+  "bundles": [
+    {
+      "id": "phase-monitor-voice",
+      "description": "Phase monitor vocal — tachyphemia CNN + émotion wav2vec2",
+      "target_dir": "inetgration/integration_kh/models",
+      "files": [
+        {
+          "name": "tachyphemia_cnn_final.keras",
+          "remote_path": "phase-monitor/tachyphemia_cnn_final.keras"
+        },
+        {
+          "name": "wav2vec2-emotion_final/config.json",
+          "remote_path": "phase-monitor/wav2vec2-emotion_final/config.json"
+        },
+        {
+          "name": "wav2vec2-emotion_final/model.safetensors",
+          "remote_path": "phase-monitor/wav2vec2-emotion_final/model.safetensors"
+        },
+        {
+          "name": "wav2vec2-emotion_final/preprocessor_config.json",
+          "remote_path": "phase-monitor/wav2vec2-emotion_final/preprocessor_config.json"
+        },
+        {
+          "name": "wav2vec2-emotion_final/special_tokens_map.json",
+          "remote_path": "phase-monitor/wav2vec2-emotion_final/special_tokens_map.json"
+        },
+        {
+          "name": "wav2vec2-emotion_final/tokenizer_config.json",
+          "remote_path": "phase-monitor/wav2vec2-emotion_final/tokenizer_config.json"
+        },
+        {
+          "name": "wav2vec2-emotion_final/vocab.json",
+          "remote_path": "phase-monitor/wav2vec2-emotion_final/vocab.json"
+        }
+      ],
+      "notes": "Entraîné via inetgration/integration_kh/bipolar_phase_monitor.ipynb. Uploadez le dossier sur Hugging Face Hub puis mettez à jour base_url si besoin."
+    },
+    {
+      "id": "keystroke-artifacts",
+      "description": "Modèles clavier / souris (KNN, Ridge, RandomForest)",
+      "target_dir": "inetgration/youssef/artifacts/keystroke",
+      "files": [
+        { "name": "m3_knn.joblib", "remote_path": "keystroke/m3_knn.joblib" },
+        { "name": "m3_ridge.joblib", "remote_path": "keystroke/m3_ridge.joblib" },
+        { "name": "m2_rf.joblib", "remote_path": "keystroke/m2_rf.joblib" },
+        { "name": "meta.json", "remote_path": "keystroke/meta.json" }
+      ],
+      "train_local": {
+        "cwd": "inetgration/youssef",
+        "command": "python -m graphrag.keystroke_train"
+      },
+      "notes": "Alternative sans Hugging Face : python scripts/download_models.py --train-keystroke"
+    }
+  ],
+  "runtime_auto_download": [
+    {
+      "name": "Ollama (llama3.2, llava)",
+      "command": "ollama pull llama3.2:3b && ollama pull llava:7b"
+    },
+    {
+      "name": "Whisper (transcription voix)",
+      "note": "Téléchargé au premier appel API (openai-whisper / faster-whisper)"
+    },
+    {
+      "name": "sentence-transformers (RAG embeddings)",
+      "note": "Téléchargé au premier npm run rag:ingest"
+    },
+    {
+      "name": "EasyOCR (ordonnances)",
+      "note": "Téléchargé au premier scan OCR (cache local)"
+    }
+  ]
+}

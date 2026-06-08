@@ -2,14 +2,37 @@
 
 Ce projet est classé **projet avec IA intégrée**. Règles appliquées :
 
-## Modèles — non versionnés dans Git
+## A. Modèles entraînés — hébergement externe
+
+Conformément au guide ESPRIT, les fichiers entraînés **ne sont jamais poussés dans Git**.
+
+| Modèle | Fichiers | Emplacement local | Obtention |
+|--------|----------|-------------------|-----------|
+| Phase monitor (voix) | `tachyphemia_cnn_final.keras`, `wav2vec2-emotion_final/` | `inetgration/integration_kh/models/` | Hugging Face + `download-models.ps1` |
+| Keystroke / souris | `*.joblib`, `meta.json` | `inetgration/youssef/artifacts/keystroke/` | Hugging Face **ou** `npm run models:train-keystroke` |
+
+### Téléchargement automatique
+
+```powershell
+.\scripts\download-models.ps1
+# ou
+npm run models:download
+```
+
+Configuration : [`models/manifest.json`](../models/manifest.json) · guide : [`models/README.md`](../models/README.md)
+
+**Lien Hugging Face** : https://huggingface.co/khalil0101/BridgingBipolar-models
+
+---
+
+## B. Modèles — non versionnés dans Git
 
 Les fichiers suivants sont **interdits** dans le dépôt (`.gitignore`) :
 
 - `.pkl`, `.joblib`, `.h5`, `.pt`, `.pth`, `.onnx`, `.bin`, `.safetensors`
-- Dossiers `models/`, `checkpoints/`, `data/raw/`, `data/processed/`
+- Dossiers `inetgration/integration_kh/models/`, `inetgration/youssef/artifacts/`, `checkpoints/`
 
-## Où sont les modèles ?
+## C. Modèles runtime (téléchargement auto)
 
 | Usage | Modèle | Obtention |
 |-------|--------|-----------|
@@ -19,6 +42,7 @@ Les fichiers suivants sont **interdits** dans le dépôt (`.gitignore`) :
 | Transcription voix | Whisper `base` | Téléchargé au 1er run (env `WHISPER_MODEL`) |
 | Embeddings RAG | `sentence-transformers` | Téléchargé via Hugging Face au 1er run |
 | Reranker (optionnel) | `cross-encoder/ms-marco-MiniLM-L-6-v2` | Hugging Face |
+| EasyOCR | weights OCR | Cache local au 1er scan ordonnance |
 
 ## Python & versions
 

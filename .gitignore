@@ -254,7 +254,11 @@ Thumbs.db
 *.onnx
 *.bin
 *.safetensors
-models/
+models/*
+!models/manifest.json
+!models/README.md
+inetgration/integration_kh/models/
+inetgration/youssef/artifacts/
 checkpoints/
 data/raw/
 data/processed/

@@ -16,6 +16,8 @@
     "dev:stack": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/start-dev.ps1",
     "dev:web:fix": "node ./apps/web/scripts/clean-next.cjs && npm run dev --workspace apps/web -- -p 3000",
     "rag:ingest": "cd inetgration/youssef && ..\\..\\rag_api\\.venv\\Scripts\\python.exe run_ingestion.py --skip_neo4j",
+    "models:download": "python scripts/download_models.py",
+    "models:train-keystroke": "python scripts/download_models.py --train-keystroke",
     "dev:rag": "cd rag_api && .venv\\Scripts\\python.exe -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8090",
     "build": "npm --workspace apps/web run build && npm --workspace apps/api run build",
     "lint": "npm --workspace apps/web run lint && npm --workspace apps/api run lint"

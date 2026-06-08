@@ -3,7 +3,8 @@
 Plateforme de suivi du trouble bipolaire (multimodal : humeur, voix, sommeil, écriture, questionnaires, chat IA).  
 Projet **Challenge-Based Learning (CBL) — Esprit School of Engineering**, année **2025-2026**.
 
-> **Règle d'or (publication ESPRIT)** : une personne externe doit pouvoir lancer le projet en **moins de 10 minutes** en suivant **uniquement ce README**.
+> **Règle d'or (publication ESPRIT)** : une personne externe doit pouvoir lancer le projet en suivant **uniquement ce README**.  
+> **Parcours minimal** (web + API + inscription) : ~10 min · **Stack complète** (IA + Ollama) : ~20–40 min selon la connexion.
 
 ---
 
@@ -33,10 +34,11 @@ Les modèles IA (Ollama, Whisper, scikit-learn) tournent **en local** ; aucun fi
 
 - [Node.js 20+](https://nodejs.org/) et npm
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/) (Postgres + Qdrant)
-- [Ollama](https://ollama.com/) (modèles locaux)
+- [Ollama](https://ollama.com/) (modèles locaux — stack complète uniquement)
+- [Python 3.11+](https://www.python.org/) (services ML / RAG)
 - Windows : PowerShell 5+ (scripts fournis) · Linux/macOS : adapter les commandes
 
-### Modèles Ollama (obligatoire pour chat / vision / ordonnances)
+### Modèles Ollama (stack complète — chat / vision / ordonnances)
 
 ```bash
 ollama pull llama3.2:3b
@@ -48,16 +50,16 @@ Gardez `ollama serve` actif (port **11434**).
 
 ---
 
-## Installation (< 10 min)
+## Installation
 
 ### 1. Cloner le dépôt
 
 ```bash
-git clone https://github.com/VOTRE_USERNAME/Esprit-PI-Classe-2526-BridgingBipolar.git
-cd Esprit-PI-Classe-2526-BridgingBipolar
+git clone https://github.com/khalilMessaoud1/Esprit-PI-AI-3IA3-2526-BridgingBipolar.git
+cd Esprit-PI-AI-3IA3-2526-BridgingBipolar
 ```
 
-Nom attendu par ESPRIT : `Esprit-[PI]-[Classe]-2526-[NomDuProjet]`
+Nom ESPRIT : `Esprit-PI-AI-3IA3-2526-BridgingBipolar`
 
 ### 2. Installer les dépendances Node
 
@@ -89,7 +91,7 @@ npm run dev:deps
 
 Démarre **PostgreSQL** (5432) et **Qdrant** (6333), puis applique les migrations Prisma.
 
-### 5. Environnement Python RAG (une fois)
+### 5. Environnement Python RAG (une fois — stack complète)
 
 ```powershell
 cd rag_api
@@ -105,6 +107,26 @@ Pour le companion avec base de connaissances bipolarité :
 ```bash
 npm run rag:ingest
 ```
+
+### 7. Modèles entraînés (annexe ESPRIT — section A)
+
+Les poids **`.keras`, `.joblib`, etc.** ne sont **pas** dans Git. Téléchargez-les :
+
+```powershell
+.\scripts\download-models.ps1
+```
+
+Ou entraînez les modèles clavier en local :
+
+```powershell
+.\scripts\download-models.ps1 -TrainKeystroke
+```
+
+| Source | Lien / commande |
+|--------|------------------|
+| **Manifest + script** | [`models/manifest.json`](models/manifest.json) · [`models/README.md`](models/README.md) |
+| **Hugging Face Hub** | https://huggingface.co/khalil0101/BridgingBipolar-models |
+| **Ollama** (chat, vision, OCR) | `ollama pull llama3.2:3b` · `ollama pull llava:7b` |
 
 ---
 
@@ -128,14 +150,17 @@ Ouvre plusieurs fenêtres : Web, API, RAG, ML, handwriting, phase-monitor.
 | **Prescription OCR** | http://localhost:5020 |
 | **Phase monitor (voix)** | http://localhost:8001 |
 
-### Lancement minimal (web + API seulement)
+> **Prescription OCR** : non inclus dans `start-dev.ps1`. Dans un terminal séparé :  
+> `npm run dev:prescription`
+
+### Lancement minimal (web + API — ~10 min)
 
 ```bash
 npm run dev:deps
 npm run dev
 ```
 
-Fonctionnalités IA avancées (chat, voix, OCR) nécessitent les services ci-dessus + Ollama.
+Inscription patient, dashboard et API fonctionnent. Chat, voix, OCR et companion nécessitent la stack complète + Ollama.
 
 ### Docker (services partiels)
 
@@ -150,8 +175,8 @@ Puis lancez web/api localement avec `npm run dev`.
 ## Test utilisateur externe
 
 ```bash
-git clone <url> test-bridgingbipolar
-cd test-bridgingbipolar
+git clone https://github.com/khalilMessaoud1/Esprit-PI-AI-3IA3-2526-BridgingBipolar.git
+cd Esprit-PI-AI-3IA3-2526-BridgingBipolar
 npm install
 .\scripts\setup-env.ps1
 npm run dev:deps
@@ -217,8 +242,16 @@ BridgingBipolar/
 
 ## Projet IA — conformité ESPRIT
 
-- Aucun `.pkl`, `.pt`, `.h5` dans le dépôt (voir `.gitignore`)
-- Modèles via **Ollama** (`ollama pull …`) ou Hugging Face au runtime
+### A. Modèles entraînés (non versionnés)
+
+- Aucun `.pkl`, `.pt`, `.h5`, `.keras`, `.joblib` dans le dépôt (voir `.gitignore`)
+- **Hébergement** : [BridgingBipolar-models sur Hugging Face](https://huggingface.co/khalil0101/BridgingBipolar-models)
+- **Téléchargement** : `.\scripts\download-models.ps1` ou `npm run models:download`
+- **Documentation** : [`models/README.md`](models/README.md) · [`models/manifest.json`](models/manifest.json)
+
+### B. Modèles runtime (Ollama / Hugging Face auto)
+
+- Modèles via **Ollama** (`ollama pull …`) ou Hugging Face au 1er lancement
 - `requirements.txt` dans chaque service Python
 - Docker Compose pour Postgres / Qdrant
 - Détails : [docs/ai-models.md](docs/ai-models.md)
@@ -227,13 +260,19 @@ BridgingBipolar/
 
 ## Auteurs
 
-- **Équipe** : [Vos noms]
-- **Classe / PI** : [À compléter]
-- **Année** : 2025-2026
-- **Encadrants** : Dr. Jihene HLEL, Mrs. Wided ASKRI, Mr. Fedi BACCAR — Esprit School of Engineering
+- **Khalil MESSAOUD**
+- **Roua ZEKRI**
+- **Med Khalil HAOUARI**
+- **Youssef BOUHAMED**
+- **Oumeima WAHADA**
+- **Med Yassine MAALEJ**
+
+**Classe / PI** : 3IA3 — PI AI · **Année** : 2025-2026
+
+**Encadrants** : Dr. Jihene HLEL, Mrs. Wided ASKRI, Mr. Fedi BACCAR — Esprit School of Engineering
 
 ---
 
 ## Licence
 
-Projet académique — Esprit School of Engineering. Préciser la licence si publication open source.
+Projet académique — Esprit School of Engineering. Usage pédagogique et de recherche.
