@@ -59,6 +59,9 @@ git clone https://github.com/khalilMessaoud1/Esprit-PI-AI-3IA3-2526-BridgingBipo
 cd Esprit-PI-AI-3IA3-2526-BridgingBipolar
 ```
 
+> **Git LFS / `git pull` bloqué ?** Les modèles IA ne sont **pas** dans Git (Hugging Face). Utilisez :  
+> `.\scripts\sync-from-github.ps1` puis `.\scripts\download-models.ps1`
+
 Nom ESPRIT : `Esprit-PI-AI-3IA3-2526-BridgingBipolar`
 
 ### 2. Installer les dépendances Node
