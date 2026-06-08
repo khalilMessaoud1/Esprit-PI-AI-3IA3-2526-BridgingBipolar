@@ -1,4 +1,4 @@
-# BridgingBipolar — start full local dev stack (Windows).
+# BridgingBipolar - start full local dev stack (Windows).
 # Usage:
 #   .\scripts\start-dev.ps1
 #   .\scripts\start-dev.ps1 -SkipDeps
@@ -32,7 +32,7 @@ function Get-VenvPythonCommand {
     if (Test-Path $venvPy) {
         return ".\.venv\Scripts\python.exe $UvicornArgs"
     }
-    Write-Host "WARNING: .venv missing in $ServiceDir — run .\scripts\setup-python.ps1" -ForegroundColor Red
+    Write-Host "WARNING: .venv missing in $ServiceDir - run .\scripts\setup-python.ps1" -ForegroundColor Red
     return "python $UvicornArgs"
 }
 
@@ -43,16 +43,19 @@ function Start-DevWindow {
         [string]$Command
     )
     $dir = $WorkingDirectory.Replace("'", "''")
-    $escapedCmd = $Command.Replace("'", "''")
-    $script = @"
-`$Host.UI.RawUI.WindowTitle = '$Title'
-Set-Location '$dir'
-Write-Host '=== $Title ===' -ForegroundColor Cyan
-Write-Host '$escapedCmd' -ForegroundColor DarkGray
-Write-Host ''
-$Command
-"@
-    Start-Process powershell -ArgumentList @("-NoExit", "-Command", $script) | Out-Null
+    $cmdPreview = $Command.Replace("'", "''")
+    $runCmd = $Command.Replace("'", "''")
+
+    $scriptText = @(
+        "`$Host.UI.RawUI.WindowTitle = '$Title'"
+        "Set-Location '$dir'"
+        "Write-Host '=== $Title ===' -ForegroundColor Cyan"
+        "Write-Host '$cmdPreview' -ForegroundColor DarkGray"
+        "Write-Host ''"
+        $runCmd
+    ) -join "; "
+
+    Start-Process powershell -ArgumentList "-NoExit", "-Command", $scriptText | Out-Null
     Write-Host "  -> $Title" -ForegroundColor Green
 }
 
@@ -65,7 +68,7 @@ $pythonServices = @(
 $missingVenv = @($pythonServices | Where-Object { -not (Test-VenvReady $_) })
 
 if ($missingVenv.Count -gt 0) {
-    Write-Host "[1/3] Python venvs missing — running setup-python.ps1..." -ForegroundColor Yellow
+    Write-Host "[1/3] Python venvs missing - running setup-python.ps1..." -ForegroundColor Yellow
     & (Join-Path $PSScriptRoot "setup-python.ps1")
     if ($LASTEXITCODE -ne 0) {
         Write-Host "setup-python.ps1 failed. Install Python 3.11+ and retry." -ForegroundColor Red
