@@ -79,11 +79,16 @@ if ($missingVenv.Count -gt 0) {
 }
 
 if (-not $SkipDeps) {
-    Write-Host "[2/3] Docker + Prisma..." -ForegroundColor Yellow
+Write-Host "[2/3] Docker + Prisma + API build..." -ForegroundColor Yellow
     npm run dev:deps
     if ($LASTEXITCODE -ne 0) {
         Write-Host "dev:deps failed. Start Docker Desktop, then retry." -ForegroundColor Red
         exit 1
+    }
+    if (-not (Test-Path (Join-Path $Root "apps\api\dist\main.js"))) {
+        Write-Host "  Building API (dist/main.js missing)..." -ForegroundColor Yellow
+        npm run build:clean --workspace apps/api
+        if ($LASTEXITCODE -ne 0) { exit 1 }
     }
 } else {
     Write-Host "[2/3] Skipping dev:deps (-SkipDeps)" -ForegroundColor DarkGray
